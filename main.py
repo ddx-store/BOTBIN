@@ -138,12 +138,20 @@ def increment_gen_stat():
     except Exception: pass
 
 def get_detailed_stats():
-    if not DATABASE_URL:
-        try:
-            users = json.loads(USERS_JSON.read_text(encoding="utf-8")) if USERS_JSON.exists() else {}
-            return len(users), len(users), 0, 0
-        except: return 0, 0, 0, 0
+    """الحصول على إحصائيات مفصلة من قاعدة البيانات أو الملف المحلي"""
     try:
+        # أولاً نحاول من الملف المحلي (لأنه الأكثر دقة في حالة عدم وجود DB)
+        local_users_count = 0
+        if USERS_JSON.exists():
+            try:
+                users_data = json.loads(USERS_JSON.read_text(encoding="utf-8"))
+                local_users_count = len(users_data)
+            except: pass
+            
+        if not DATABASE_URL:
+            return local_users_count, local_users_count, 0, 0
+            
+        # إذا كانت قاعدة البيانات موجودة، نأخذ منها
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM bot_users")
@@ -156,8 +164,16 @@ def get_detailed_stats():
         gens = cur.fetchone()[0]
         cur.close()
         conn.close()
-        return total, active, banned, gens
-    except Exception: return 0, 0, 0, 0
+        # نأخذ القيمة الأكبر بين المحلي وقاعدة البيانات لضمان عدم فقدان أحد
+        return max(total, local_users_count), active, banned, gens
+    except Exception: 
+        # في حال حدوث أي خطأ، نعود للملف المحلي كحل أخير
+        try:
+            if USERS_JSON.exists():
+                users_data = json.loads(USERS_JSON.read_text(encoding="utf-8"))
+                return len(users_data), len(users_data), 0, 0
+        except: pass
+        return 0, 0, 0, 0
 
 # --- Generation Logic ---
 
@@ -197,12 +213,13 @@ def generate_cvv():
     return f"{random.randint(0, 999):03d}"
 
 async def bin_lookup(bin_number):
+    """البحث عن معلومات الـ BIN مع معالجة الأخطاء لضمان عدم التعليق"""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f'https://lookup.binlist.net/{bin_number}',
                 headers={'Accept-Version': '3'},
-                timeout=5
+                timeout=3 # تقليل وقت الانتظار لتجنب التعليق
             )
         if response.status_code == 200:
             data = response.json()
@@ -213,7 +230,8 @@ async def bin_lookup(bin_number):
             emoji = data.get('country', {}).get('emoji', '🏳️')
             return scheme, card_type, bank, country, emoji
         return "N/A", "N/A", "N/A", "N/A", "🏳️"
-    except Exception:
+    except Exception as e:
+        print(f"BIN Lookup Error: {e}")
         return "N/A", "N/A", "N/A", "N/A", "🏳️"
 
 # --- Bot Handlers ---
@@ -222,7 +240,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     user = update.message.from_user
     if not user: return
-    is_new = register_user(user.id, user.username, user.first_name)
+    register_user(user.id, user.username, user.first_name)
     welcome_text = (
         f"مرحبا {user.first_name}! 👋\n\n"
         f"أهلا فيك في بوت DDXSTORE\n\n"
@@ -235,28 +253,60 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome_text)
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """لوحة التحكم للأدمن مع عرض مباشر لعدد المشتركين"""
     if not update.message or update.message.from_user.id != ADMIN_ID: return
+    
+    total, active, banned, gens = get_detailed_stats()
+    
     keyboard = [
-        [InlineKeyboardButton("📊 الإحصائيات", callback_data="admin_stats")],
-        [InlineKeyboardButton("💾 نسخة احتياطية", callback_data="admin_backup")],
+        [InlineKeyboardButton("📊 تحديث الإحصائيات", callback_data="admin_stats")],
+        [InlineKeyboardButton("💾 تحميل النسخة الاحتياطية", callback_data="admin_backup")],
     ]
-    await update.message.reply_text("🛠 لوحة تحكم المدير:", reply_markup=InlineKeyboardMarkup(keyboard))
+    
+    admin_text = (
+        f"🛠 **لوحة تحكم المدير**\n\n"
+        f"👥 **إجمالي المشتركين:** `{total}`\n"
+        f"✅ **النشطين:** `{active}`\n"
+        f"🚫 **المحظورين:** `{banned}`\n"
+        f"💳 **إجمالي التوليدات:** `{gens}`\n\n"
+        f"اختر من الخيارات أدناه:"
+    )
+    
+    await update.message.reply_text(admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if not query or query.from_user.id != ADMIN_ID: return
     await query.answer()
+    
     if query.data == "admin_stats":
         t, a, b, g = get_detailed_stats()
-        text = f"📊 إحصائيات البوت:\n\n👥 الإجمالي: {t}\n✅ النشطين: {a}\n🚫 المحظورين: {b}\n💳 التوليدات: {g}"
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("رجوع", callback_data="admin_main")]]))
+        text = (
+            f"📊 **إحصائيات البوت المحدثة**\n\n"
+            f"👥 **الإجمالي:** `{t}`\n"
+            f"✅ **النشطين:** `{a}`\n"
+            f"🚫 **المحظورين:** `{b}`\n"
+            f"💳 **التوليدات:** `{g}`"
+        )
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("رجوع", callback_data="admin_main")]]), parse_mode='Markdown')
+    
     elif query.data == "admin_backup":
         if USERS_JSON.exists():
             await context.bot.send_document(chat_id=ADMIN_ID, document=open(USERS_JSON, 'rb'), filename="users_backup.json", caption="💾 نسخة احتياطية للمشتركين")
-        else: await query.answer("❌ لا يوجد بيانات حالياً")
+        else: 
+            await query.message.reply_text("❌ لا يوجد بيانات حالياً")
+            
     elif query.data == "admin_main":
-        keyboard = [[InlineKeyboardButton("📊 الإحصائيات", callback_data="admin_stats")], [InlineKeyboardButton("💾 نسخة احتياطية", callback_data="admin_backup")]]
-        await query.edit_message_text("🛠 لوحة تحكم المدير:", reply_markup=InlineKeyboardMarkup(keyboard))
+        t, a, b, g = get_detailed_stats()
+        admin_text = (
+            f"🛠 **لوحة تحكم المدير**\n\n"
+            f"👥 **إجمالي المشتركين:** `{t}`\n"
+            f"✅ **النشطين:** `{a}`\n"
+            f"🚫 **المحظورين:** `{b}`\n"
+            f"💳 **إجمالي التوليدات:** `{g}`"
+        )
+        keyboard = [[InlineKeyboardButton("📊 تحديث الإحصائيات", callback_data="admin_stats")], [InlineKeyboardButton("💾 تحميل النسخة الاحتياطية", callback_data="admin_backup")]]
+        await query.edit_message_text(admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
@@ -268,51 +318,77 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     bin_input = args[0]
+    # تنظيف الـ BIN
     prefix = re.sub(r'[^0-9]', '', bin_input.split('x')[0] if 'x' in bin_input.lower() else bin_input)
+    
     if len(prefix) < 6:
         await update.message.reply_text("❌ الـ BIN يجب أن يكون 6 أرقام على الأقل.")
         return
 
     wait_msg = await update.message.reply_text("⏳ جاري التوليد والبحث...")
-    scheme, card_type, bank, country, emoji = await bin_lookup(prefix[:6])
     
-    cards = []
-    for _ in range(10):
-        cc = generate_card_from_prefix(prefix)
-        mm, yy = generate_expiry()
-        cvv = generate_cvv()
-        cards.append(f"<code>{cc}|{mm}|{yy}|{cvv}</code>")
-    
-    # استخدام خاصية تحديد الدولة تلقائياً إذا كانت متوفرة
-    extra_info = ""
-    if country_autodetect and country != "N/A":
-        addr = country_autodetect.get_random_address(country)
-        if addr:
-            extra_info = f"\n\n📍 **معلومات العنوان المقترحة:**\n🏙 المدينة: {addr['city']}\n🏘 الحي: {addr['district']}\n🛣 الشارع: {addr['street']}\n📮 الرمز البريدي: {addr['zip']}"
+    try:
+        # البحث عن معلومات الـ BIN
+        scheme, card_type, bank, country, emoji = await bin_lookup(prefix[:6])
+        
+        cards = []
+        for _ in range(10):
+            cc = generate_card_from_prefix(prefix)
+            mm, yy = generate_expiry()
+            cvv = generate_cvv()
+            cards.append(f"<code>{cc}|{mm}|{yy}|{cvv}</code>")
+        
+        # معلومات العنوان المقترحة
+        extra_info = ""
+        if country_autodetect and country != "N/A":
+            try:
+                addr = country_autodetect.get_random_address(country)
+                if addr:
+                    extra_info = f"\n\n📍 **معلومات العنوان المقترحة:**\n🏙 المدينة: {addr['city']}\n🏘 الحي: {addr['district']}\n🛣 الشارع: {addr['street']}\n📮 الرمز البريدي: {addr['zip']}"
+            except Exception as e:
+                print(f"Address Generation Error: {e}")
 
-    response = (
-        f"✅ **تم التوليد بنجاح!**\n\n"
-        f"🔹 **المعلومات:** {scheme} - {card_type}\n"
-        f"🏛 **البنك:** {bank}\n"
-        f"🌍 **الدولة:** {country} {emoji}\n\n"
-        f"💳 **البطاقات:**\n" + "\n".join(cards) +
-        f"{extra_info}\n\n"
-        f"© DDXSTORE"
-    )
-    
-    increment_gen_stat()
-    await wait_msg.delete()
-    await update.message.reply_text(response, parse_mode='HTML')
+        response = (
+            f"✅ **تم التوليد بنجاح!**\n\n"
+            f"🔹 **المعلومات:** {scheme} - {card_type}\n"
+            f"🏛 **البنك:** {bank}\n"
+            f"🌍 **الدولة:** {country} {emoji}\n\n"
+            f"💳 **البطاقات:**\n" + "\n".join(cards) +
+            f"{extra_info}\n\n"
+            f"© DDXSTORE"
+        )
+        
+        increment_gen_stat()
+        await wait_msg.delete()
+        await update.message.reply_text(response, parse_mode='HTML')
+        
+    except Exception as e:
+        print(f"Gen Command Error: {e}")
+        await wait_msg.edit_text("❌ حدث خطأ أثناء التوليد، يرجى المحاولة مرة أخرى.")
+
+async def users_count_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """أمر سريع للأدمن لمعرفة عدد المشتركين"""
+    if not update.message or update.message.from_user.id != ADMIN_ID: return
+    total, active, banned, gens = get_detailed_stats()
+    await update.message.reply_text(f"👥 عدد المشتركين الحالي: `{total}`", parse_mode='Markdown')
 
 def main():
-    if not BOT_TOKEN: return
+    if not BOT_TOKEN: 
+        print("❌ BOT_TOKEN missing!")
+        return
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
+    
+    # الأوامر
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("gen", gen_command))
+    app.add_handler(CommandHandler("users", users_count_command)) # أمر إضافي لعدد المشتركين
+    
+    # التعامل مع الأزرار
     app.add_handler(CallbackQueryHandler(handle_callback))
-    print("🚀 البوت الثاني يعمل الآن...")
+    
+    print("🚀 البوت الثاني المطور يعمل الآن...")
     app.run_polling()
 
 if __name__ == "__main__":
