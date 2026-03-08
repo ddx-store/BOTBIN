@@ -424,61 +424,60 @@ async def find_country(text):
     return None, use_arabic
 
 
-_S = "━" * 22
-_FOOT = "© DDXSTORE • @ddx22"
+_SEP  = "\u2500" * 11   # ─────────────
+_FOOT = "\u00a9 DDXSTORE \u2022 @ddx22"
 
 
-def _lv(label, value, emoji=""):
-    em = f"{emoji}  " if emoji else "    "
-    return f"{em}<b>{label:<8}</b>  »  {value}"
+def _row(label: str, value: str, code: bool = False) -> str:
+    val = ("<code>" + value + "</code>") if code else value
+    return "<b>" + label + "</b>  :  " + val
 
 
 def get_country_info_text(match, use_arabic):
     country_name = match["name"]
-    capital = match.get("capital", "N/A")
-    currency = match.get("currency_code", "N/A")
+    capital      = match.get("capital", "N/A")
+    currency     = match.get("currency_code", "N/A")
     currency_name = match.get("currency_name", "")
-    phone_code = match.get("phone_code", "N/A")
-    continent = match.get("continent", "N/A")
+    continent    = match.get("continent", "N/A")
 
     city_data = CITY_DATA.get(country_name, {})
     if city_data:
-        phone_code = city_data.get("phone_code", phone_code)
-        currency = city_data.get("currency", currency)
+        currency  = city_data.get("currency", currency)
         continent = city_data.get("continent", continent)
 
     display_name = (match.get("ara") or country_name) if use_arabic else country_name
-    cur_full = f"{currency}  ({currency_name})" if currency_name else currency
+    cur_full = currency + "  (" + currency_name + ")" if currency_name else currency
+    rand_name = generate_full_name()
 
-    return (
-        f"{_S}\n"
-        f"    🌍  <b>DDX COUNTRY INFO</b>\n"
-        f"{_S}\n"
-        f"{_lv('Country', display_name, '🏳️')}\n"
-        f"{_lv('Capital', capital, '🏙')}\n"
-        f"{_lv('Currency', cur_full, '💰')}\n"
-        f"{_lv('Phone', phone_code, '📞')}\n"
-        f"{_lv('Continent', continent, '🌐')}\n"
-        f"{_S}\n"
-        f"    <i>{_FOOT}</i>"
-    )
+    lines = [
+        "    \U0001f30d  <b>COUNTRY INFO</b>",
+        _SEP,
+        _row("Name",      rand_name,    code=True),
+        _row("Country",   display_name),
+        _row("Capital",   capital),
+        _row("Currency",  cur_full),
+        _row("Continent", continent),
+        _SEP,
+        "    <i>" + _FOOT + "</i>",
+    ]
+    return "\n".join(lines)
 
 
 def get_address_text(country_name, use_arabic=False):
-    addr = get_random_address(country_name, use_arabic)
-    phone = CITY_DATA.get(country_name, {}).get("phone_code", addr.get("phone", "—"))
+    addr  = get_random_address(country_name, use_arabic)
+    phone = CITY_DATA.get(country_name, {}).get("phone_code", addr.get("phone", "\u2014"))
 
-    return (
-        f"{_S}\n"
-        f"    📍  <b>DDX ADDRESS GEN</b>\n"
-        f"{_S}\n"
-        f"{_lv('Name', addr.get('full_name') or '—', '🪪')}\n"
-        f"{_lv('Country', country_name, '🌍')}\n"
-        f"{_lv('City', addr.get('city') or '—', '🏙')}\n"
-        f"{_lv('Street', addr.get('street') or '—', '🛣')}\n"
-        f"{_lv('State', addr.get('state') or '—', '📌')}\n"
-        f"{_lv('ZIP', addr.get('zip') or '—', '📮')}\n"
-        f"{_lv('Phone', phone, '📞')}\n"
-        f"{_S}\n"
-        f"    <i>{_FOOT}</i>"
-    )
+    lines = [
+        "    \U0001f4cd  <b>ADDRESS GEN</b>",
+        _SEP,
+        _row("Name",    addr.get("full_name") or "\u2014", code=True),
+        _row("Country", country_name),
+        _row("City",    addr.get("city")   or "\u2014", code=True),
+        _row("Street",  addr.get("street") or "\u2014", code=True),
+        _row("State",   addr.get("state")  or "\u2014"),
+        _row("ZIP",     addr.get("zip")    or "\u2014", code=True),
+        _row("Phone",   phone,                         code=True),
+        _SEP,
+        "    <i>" + _FOOT + "</i>",
+    ]
+    return "\n".join(lines)
