@@ -10,6 +10,7 @@ from bot.handlers.fake import fake_command, fake_regen_callback
 from bot.handlers.admin import (
     admin_panel, ban_command, unban_command,
     broadcast_command, stats_command, admin_callback,
+    user_info_command,
 )
 from bot.handlers.router import text_router
 from bot.database.queries import is_user_banned
@@ -66,6 +67,7 @@ def create_app():
     app.add_handler(CommandHandler("unban", unban_command))
     app.add_handler(CommandHandler("broadcast", broadcast_command))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("user", user_info_command))
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.Regex(r"^/gen\d+"), gen_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))

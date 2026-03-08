@@ -21,7 +21,8 @@ from bot.utils.logger import get_logger
 logger = get_logger("gen")
 
 
-async def format_gen_response(user, bin_input, count=DEFAULT_CARD_COUNT, fixed_month=None, fixed_year=None):
+async def format_gen_response(user, bin_input, count=DEFAULT_CARD_COUNT,
+                              fixed_month=None, fixed_year=None, fixed_cvv=None):
     increment_gen_stat()
     increment_request_stat()
     log_request(user.id, "gen", bin_input[:8])
@@ -33,45 +34,52 @@ async def format_gen_response(user, bin_input, count=DEFAULT_CARD_COUNT, fixed_m
     except Exception:
         info = {"scheme": "N/A", "type": "N/A", "bank": "N/A", "country": "N/A", "emoji": "\U0001f3f3\ufe0f"}
 
-    raw_cards = generate_cards(prefix, count, fixed_month, fixed_year)
+    raw_cards = generate_cards(prefix, count, fixed_month, fixed_year, fixed_cvv)
     cards = [c for c in raw_cards if is_valid_luhn(c["number"])]
     msg = gen_msg(user, prefix, info, cards,
                   bin_input=bin_input, fixed_month=fixed_month, fixed_year=fixed_year,
-                  checked=len(cards))
+                  fixed_cvv=fixed_cvv, checked=len(cards))
 
     callback_data = f"regen_{prefix}_{count}"
     if fixed_month and fixed_year:
         callback_data += f"_{fixed_month}_{fixed_year}"
+    if fixed_cvv:
+        callback_data += f"_cvv{fixed_cvv}"
 
     keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=callback_data)]]
     return msg, InlineKeyboardMarkup(keyboard)
 
 
 def _parse_gen_input(text: str):
+    """Returns (bin_input, month, year, count, fixed_cvv)."""
     match = re.match(r"^/gen(@\w+)?\s*(.*)", text, re.IGNORECASE | re.DOTALL)
     full_input = match.group(2).strip() if match else text.strip()
     if not full_input:
-        return None, None, None, None
+        return None, None, None, None, None
 
+    # Pipe format: BIN|MM|YY[|CVV][ count]
+    # e.g. 4111xxxx|01|2026|123  or  4111xxxx|01|2026|123 20
     pipe_match = re.match(
-        r"^([\dxX]{6,19})[|/\-](\d{1,2})[|/\-](\d{2,4})(?:[|/\-](\d+))?$",
+        r"^([\dxX]{6,19})[|/\-](\d{1,2})[|/\-](\d{2,4})(?:[|/\-](\d{1,4}))?(?:\s+(\d{1,3}))?$",
         full_input.strip(),
         re.IGNORECASE,
     )
     if pipe_match:
         bin_input = pipe_match.group(1)
-        month = pipe_match.group(2).zfill(2)
-        year = pipe_match.group(3)
-        count_str = pipe_match.group(4)
-        count = min(int(count_str), MAX_CARD_COUNT) if count_str and count_str.isdigit() else DEFAULT_CARD_COUNT
+        month     = pipe_match.group(2).zfill(2)
+        year      = pipe_match.group(3)
+        cvv_seg   = pipe_match.group(4)
+        cnt_seg   = pipe_match.group(5)
+        fixed_cvv = cvv_seg.zfill(3) if cvv_seg else None
+        count     = min(int(cnt_seg), MAX_CARD_COUNT) if cnt_seg and cnt_seg.isdigit() else DEFAULT_CARD_COUNT
         if len(year) == 4:
             year = year[2:]
-        return bin_input, month, year, count
+        return bin_input, month, year, count, fixed_cvv
 
     clean_input = re.sub(r"[|\-/]", " ", full_input)
     parts = clean_input.split()
     bin_input, month, year = None, None, None
-    count = DEFAULT_CARD_COUNT
+    count, fixed_cvv = DEFAULT_CARD_COUNT, None
 
     for part in parts:
         if re.match(r"^[\dXx]{6,}$", part):
@@ -79,7 +87,7 @@ def _parse_gen_input(text: str):
             break
 
     if not bin_input:
-        return None, None, None, None
+        return None, None, None, None, None
 
     remaining = [p for p in parts if p != bin_input and p.isdigit()]
 
@@ -101,7 +109,7 @@ def _parse_gen_input(text: str):
         if 2 <= val <= MAX_CARD_COUNT:
             count = val
 
-    return bin_input, month, year, count
+    return bin_input, month, year, count, fixed_cvv
 
 
 async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -125,7 +133,7 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     text = update.message.text or ""
-    bin_input, month, year, count = _parse_gen_input(text)
+    bin_input, month, year, count, fixed_cvv = _parse_gen_input(text)
 
     if not bin_input:
         await update.message.reply_text(MSG_GEN_EXAMPLE)
@@ -137,14 +145,14 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     increment_request_count(user.id)
-    logger.info(f"User {user.id} /gen BIN={raw_digits[:6]} count={count}")
+    logger.info(f"User {user.id} /gen BIN={raw_digits[:6]} count={count} cvv={fixed_cvv}")
 
     if count > LARGE_GEN_THRESHOLD:
         wait_msg = await update.message.reply_text(MSG_QUEUED)
 
         async def _task():
             try:
-                msg, markup = await format_gen_response(user, bin_input, count, month, year)
+                msg, markup = await format_gen_response(user, bin_input, count, month, year, fixed_cvv)
                 await wait_msg.delete()
                 await update.message.reply_text(msg, reply_markup=markup, parse_mode="HTML")
             except Exception as e:
@@ -157,7 +165,7 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         wait_msg = await update.message.reply_text(MSG_PROCESSING)
         try:
-            msg, markup = await format_gen_response(user, bin_input, count, month, year)
+            msg, markup = await format_gen_response(user, bin_input, count, month, year, fixed_cvv)
             await wait_msg.delete()
             await update.message.reply_text(msg, reply_markup=markup, parse_mode="HTML")
         except Exception as e:
@@ -168,15 +176,20 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def regen_callback(query, user):
     data = query.data
     parts = data.split("_")
-    bin_val = parts[1]
-    count = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else DEFAULT_CARD_COUNT
-    month = parts[3] if len(parts) > 4 else None
-    year = parts[4] if len(parts) > 4 else None
+    bin_val   = parts[1]
+    count     = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else DEFAULT_CARD_COUNT
+    month     = parts[3] if len(parts) > 4 else None
+    year      = parts[4] if len(parts) > 4 else None
+    fixed_cvv = None
+    for p in parts:
+        if p.startswith("cvv"):
+            fixed_cvv = p[3:]
+            break
 
     count = min(count, MAX_CARD_COUNT)
 
     try:
-        msg, markup = await format_gen_response(user, bin_val, count, month, year)
+        msg, markup = await format_gen_response(user, bin_val, count, month, year, fixed_cvv)
         await query.edit_message_text(msg, reply_markup=markup, parse_mode="HTML")
     except Exception as e:
         logger.error(f"Regen callback error: {e}")

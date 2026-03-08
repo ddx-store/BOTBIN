@@ -20,10 +20,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"New user: {user.id} @{user.username}")
         if ADMIN_ID:
             try:
-                await context.bot.send_message(
-                    chat_id=ADMIN_ID,
-                    text=f"\U0001f195 New user: {user.first_name} (@{user.username}) [{user.id}]",
+                from bot.database.backup import get_local_user_count
+                total = get_local_user_count()
+                name_d  = user.first_name or "—"
+                uname_d = f"@{user.username}" if user.username else "—"
+                notif = (
+                    "🆕 مشترك جديد!\n"
+                    "─────────────\n"
+                    f"👤 الاسم  :  {name_d}\n"
+                    f"🔗 المعرف :  {uname_d}\n"
+                    f"🆔 ID     :  {user.id}\n"
+                    "─────────────\n"
+                    f"👥 إجمالي المشتركين: {total}"
                 )
+                await context.bot.send_message(chat_id=ADMIN_ID, text=notif)
             except Exception:
                 pass
         await update.message.reply_text(WELCOME_NEW.format(name=user.first_name))

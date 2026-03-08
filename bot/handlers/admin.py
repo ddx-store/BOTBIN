@@ -131,6 +131,74 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg)
 
 
+async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not is_admin(update.message.from_user.id):
+        return
+
+    query_str = " ".join(context.args).strip() if context.args else ""
+    if not query_str:
+        await update.message.reply_text("❌ الاستخدام: /user <ID أو @username>")
+        return
+
+    import json
+    from pathlib import Path
+    from bot.database.bin_db import get_user_summary, get_recent_bin_lookups
+
+    users_json = Path("data/users.json")
+    all_users = {}
+    if users_json.exists():
+        try:
+            all_users = json.loads(users_json.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    found_uid, found_info = None, None
+    q = query_str.lstrip("@").lower()
+    for uid, info in all_users.items():
+        uname = (info.get("username") or "").lower()
+        if uid == q or uname == q:
+            found_uid = int(uid)
+            found_info = info
+            break
+
+    if not found_uid and q.isdigit():
+        found_uid = int(q)
+        found_info = all_users.get(q, {})
+
+    if not found_uid:
+        await update.message.reply_text("❌ المستخدم غير موجود في قاعدة البيانات.")
+        return
+
+    name_d  = found_info.get("first_name") or "—"
+    uname_d = f"@{found_info.get('username')}" if found_info.get("username") else "—"
+    joined  = (found_info.get("joined_at") or "—")[:10]
+
+    user_activity = {uid: total for uid, total in get_user_summary(200)}
+    total_reqs = user_activity.get(found_uid, 0)
+
+    recent_bins = [(detail[:6], scheme or "?", country or "?")
+                   for uid, detail, ts, scheme, typ, bank, country, emoji
+                   in get_recent_bin_lookups(50) if uid == found_uid][:5]
+
+    bin_lines = ""
+    if recent_bins:
+        bin_lines = "\n💳 آخر BINs:\n"
+        for b, s, c in recent_bins:
+            bin_lines += f"  • {b}  ({s} — {c})\n"
+
+    msg = (
+        f"👤 معلومات المستخدم\n{SEP}\n"
+        f"🔗 المعرف  :  {uname_d}\n"
+        f"📛 الاسم   :  {name_d}\n"
+        f"🆔 ID      :  {found_uid}\n"
+        f"📅 انضم    :  {joined}\n"
+        f"{SEP}\n"
+        f"📊 إجمالي الطلبات  :  {total_reqs}"
+        f"{bin_lines}"
+    )
+    await update.message.reply_text(msg)
+
+
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not is_admin(update.message.from_user.id):
         return

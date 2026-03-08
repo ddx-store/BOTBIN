@@ -12,6 +12,38 @@ from bot.services.country_service import (
     generate_zip, CITY_DATA,
 )
 
+COUNTRY_MAP = {
+    "us": "United States", "usa": "United States", "america": "United States",
+    "uk": "United Kingdom", "gb": "United Kingdom", "britain": "United Kingdom",
+    "sa": "Saudi Arabia",   "ksa": "Saudi Arabia",  "saudi": "Saudi Arabia",
+    "ae": "United Arab Emirates", "uae": "United Arab Emirates", "emirates": "United Arab Emirates",
+    "eg": "Egypt",          "egypt": "Egypt",
+    "kw": "Kuwait",         "kuwait": "Kuwait",
+    "qa": "Qatar",          "qatar": "Qatar",
+    "bh": "Bahrain",        "bahrain": "Bahrain",
+    "om": "Oman",           "oman": "Oman",
+    "jo": "Jordan",         "jordan": "Jordan",
+    "iq": "Iraq",           "iraq": "Iraq",
+    "lb": "Lebanon",        "lebanon": "Lebanon",
+    "ma": "Morocco",        "morocco": "Morocco",
+    "dz": "Algeria",        "algeria": "Algeria",
+    "tn": "Tunisia",        "tunisia": "Tunisia",
+    "fr": "France",         "france": "France",
+    "de": "Germany",        "germany": "Germany",
+    "tr": "Turkey",         "turkey": "Turkey",
+    "in": "India",          "india": "India",
+    "cn": "China",          "china": "China",
+    "jp": "Japan",          "japan": "Japan",
+    "br": "Brazil",         "brazil": "Brazil",
+    "ca": "Canada",         "canada": "Canada",
+    "au": "Australia",      "australia": "Australia",
+    "ru": "Russia",         "russia": "Russia",
+    "kr": "South Korea",    "korea": "South Korea",
+    "mx": "Mexico",         "mexico": "Mexico",
+    "es": "Spain",          "spain": "Spain",
+    "it": "Italy",          "italy": "Italy",
+}
+
 DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com", "icloud.com"]
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
@@ -56,13 +88,25 @@ def generate_phone_number():
     return f"+1 ({area}) {mid}-{end}"
 
 
-def generate_fake_identity():
+def resolve_country(query: str) -> str | None:
+    if not query:
+        return None
+    q = query.strip().lower()
+    if q in COUNTRY_MAP:
+        return COUNTRY_MAP[q]
+    for key in CITY_DATA:
+        if key.lower() == q or key.lower().startswith(q):
+            return key
+    return None
+
+
+def generate_fake_identity(country: str = None):
     first_names = FIRST_NAMES_MALE + FIRST_NAMES_FEMALE
     first = random.choice(first_names)
     last = random.choice(LAST_NAMES)
 
     countries = list(CITY_DATA.keys())
-    country = random.choice(countries)
+    country = country if (country and country in CITY_DATA) else random.choice(countries)
     data = CITY_DATA[country]
     city = random.choice(data["cities"])
     street_num = random.randint(1, 999)
@@ -110,18 +154,25 @@ async def fake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     increment_request_count(user.id)
     increment_request_stat()
-    log_request(user.id, "fake", "")
 
-    fake = generate_fake_identity()
-    msg = build_fake_msg(fake)
-    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data="fake_regen")]]
+    country_query = " ".join(context.args) if context.args else None
+    resolved = resolve_country(country_query) if country_query else None
+    log_request(user.id, "fake", resolved or "random")
+
+    fake = generate_fake_identity(resolved)
+    msg  = build_fake_msg(fake)
+    cb   = f"fake_regen_{resolved}" if resolved else "fake_regen"
+    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=cb)]]
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
 async def fake_regen_callback(query, user):
-    fake = generate_fake_identity()
-    msg = build_fake_msg(fake)
-    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data="fake_regen")]]
+    data = query.data
+    country = data[len("fake_regen_"):] if data.startswith("fake_regen_") else None
+    fake = generate_fake_identity(country if country else None)
+    msg  = build_fake_msg(fake)
+    cb   = data
+    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=cb)]]
     try:
         await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     except Exception:

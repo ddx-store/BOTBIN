@@ -33,8 +33,8 @@ def _code(val: str) -> str:
     return "<code>" + val + "</code>"
 
 
-def _build_format(bin_input: str, fixed_month: str = None, fixed_year: str = None) -> str:
-    """Build the Format field from the original bin_input."""
+def _build_format(bin_input: str, fixed_month: str = None,
+                  fixed_year: str = None, fixed_cvv: str = None) -> str:
     raw = (bin_input or "").strip()
     clean = re.sub(r"[^0-9xX]", "", raw)
     digit_part = re.sub(r"[xX].*", "", clean)
@@ -43,15 +43,17 @@ def _build_format(bin_input: str, fixed_month: str = None, fixed_year: str = Non
     if x_part:
         fmt += x_part.lower()
     m = fixed_month or "x"
-    y = fixed_year or "x"
-    return fmt + "|" + m + "|" + y + "|x"
+    y = fixed_year  or "x"
+    c = fixed_cvv   or "xxx"
+    return fmt + "|" + m + "|" + y + "|" + c
 
 
 # ─── Card Generator ───────────────────────────────────────────────────────────
 
 def gen_msg(user, prefix: str, info: dict, cards: list,
             bin_input: str = None, fixed_month: str = None,
-            fixed_year: str = None, checked: int = None) -> str:
+            fixed_year: str = None, fixed_cvv: str = None,
+            checked: int = None) -> str:
 
     uname = ("@" + user.username) if user.username else (user.first_name or str(user.id))
 
@@ -62,7 +64,7 @@ def gen_msg(user, prefix: str, info: dict, cards: list,
 
     bank    = (info.get("bank") or "N/A").upper()
     country = _country_str(info, upper=True)
-    fmt_str = _build_format(bin_input or prefix, fixed_month, fixed_year)
+    fmt_str = _build_format(bin_input or prefix, fixed_month, fixed_year, fixed_cvv)
 
     total = len(cards)
     passed = checked if checked is not None else total

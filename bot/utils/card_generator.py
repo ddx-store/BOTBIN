@@ -33,16 +33,13 @@ def generate_cvv():
     return f"{random.randint(0, 999):03d}"
 
 
-def generate_cards(prefix, count=10, fixed_month=None, fixed_year=None):
+def generate_cards(prefix, count=10, fixed_month=None, fixed_year=None, fixed_cvv=None):
     cards = []
     for _ in range(count):
         card = generate_card_from_prefix(prefix)
         if not card:
             continue
-        if fixed_month and fixed_year:
-            m, y = fixed_month, fixed_year
-        else:
-            m, y = generate_expiry()
-        cvv = generate_cvv()
+        m, y = (fixed_month, fixed_year) if (fixed_month and fixed_year) else generate_expiry()
+        cvv = fixed_cvv if fixed_cvv else generate_cvv()
         cards.append({"number": card, "month": m, "year": y, "cvv": cvv})
     return cards
