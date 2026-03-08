@@ -1,0 +1,158 @@
+Act as a senior Python Telegram bot developer with strong experience in building scalable Telegram bots using aiogram or python-telegram-bot.
+
+Your task is to design and improve a professional Telegram bot system.
+
+Project idea:
+The bot is a utility Telegram bot that provides the following services:
+- Credit card number generation based on BIN
+- BIN information lookup
+- Random address generation by country
+- Country information lookup
+- User management system
+- Admin control commands
+
+The bot must be written in Python with a clean, modular, and scalable architecture.
+
+Technical requirements:
+
+- Language: Python
+- Framework: aiogram (preferred) or python-telegram-bot
+- Architecture: Modular structure
+- Async architecture
+- Database: SQLite or PostgreSQL
+- Clean and production-ready code
+
+Features to implement:
+
+1. CC Generator with Luhn Algorithm
+The bot must generate valid card numbers using the Luhn algorithm based on a provided BIN.
+
+Example command:
+/gen 453212xxxxxxxxxx
+
+The bot should generate card numbers matching the BIN format.
+
+2. BIN Lookup System
+Users can request information about a BIN.
+
+Example:
+/bin 453212
+
+The bot should return information such as:
+- Brand
+- Type
+- Bank
+- Country
+- Level
+
+3. Address Generator by Country
+The bot can generate realistic random addresses based on country.
+
+Example:
+Users send:
+/address us
+
+The bot returns:
+- Full Name
+- Street
+- City
+- State
+- ZIP
+- Phone
+
+4. Multi Card Generation
+Users can generate multiple cards at once.
+
+Example:
+/gen 453212xxxxxxxxxx 20
+
+This generates 20 card numbers.
+
+5. User System with Request Limits
+The bot must track users in the database and apply request limits per user.
+
+The system should store:
+- User ID
+- Username
+- Request count
+- Join date
+- Ban status
+
+6. Admin Panel Commands
+Admin commands should include:
+
+/users – show total users  
+/ban USER_ID – ban a user  
+/unban USER_ID – unban a user  
+/stats – show bot statistics  
+
+7. Country Information System (Natural Message Input)
+
+Users should be able to send a country name directly without using a command.
+
+Example user messages:
+USA  
+Germany  
+Japan  
+Saudi Arabia  
+
+The bot must detect that the message is a country name and automatically return information such as:
+
+- Country name
+- Capital
+- Currency
+- Phone code
+- Continent
+
+Example response:
+
+Country: Germany
+Capital: Berlin
+Currency: Euro
+Phone Code: +49
+Continent: Europe
+
+The bot should also support country aliases such as:
+US, USA, United States, America.
+
+8. Smart Message Detection
+
+The bot should intelligently detect what the user sends:
+
+If the message is:
+- a BIN → return BIN information
+- a country name → return country information
+- a generation pattern → generate cards
+
+9. Error Handling System
+
+The bot must include proper error handling and validation for invalid input.
+
+10. Professional Project Structure
+
+Design a clean project structure such as:
+
+bot/
+ ├── handlers/
+ ├── services/
+ ├── database/
+ ├── utils/
+ ├── middlewares/
+ ├── config/
+ └── main.py
+
+Also provide:
+- Database schema
+- Command handlers
+- Message handlers
+- Utility functions
+
+Instructions:
+
+1. First analyze the entire bot system.
+2. Propose the best architecture.
+3. Design the project folder structure.
+4. Design the database schema.
+5. Then start implementing the bot code step by step.
+
+The code must be clean, modular, and production-ready.

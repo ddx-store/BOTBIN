@@ -1,0 +1,24 @@
+import os
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+ADMIN_ID_STR = os.getenv("ADMIN_ID", "0")
+ADMIN_ID = int(ADMIN_ID_STR) if ADMIN_ID_STR.isdigit() else 0
+
+COPYRIGHT = "© DDXSTORE • @ddx22"
+
+RATE_LIMIT_MAX = 15
+RATE_LIMIT_WINDOW = 60
+
+DEFAULT_CARD_COUNT = 10
+MAX_CARD_COUNT = 200
+QUEUE_THRESHOLD = 50
+
+DEFAULT_CARD_LENGTH = 16
+
+BIN_LOOKUP_URL = "https://lookup.binlist.net"
+BIN_LOOKUP_TIMEOUT = 5
+
+COUNTRIES_API_URL = "https://restcountries.com/v3.1/all"
+COUNTRIES_CACHE_TTL = 86400

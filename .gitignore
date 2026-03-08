@@ -44,3 +44,13 @@ backups/*.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Replit
+.replit
+.local/
+.cache/
+.upm/
+.pythonlibs/
+.agents/
+attached_assets/
+replit.nix
