@@ -424,6 +424,15 @@ async def find_country(text):
     return None, use_arabic
 
 
+_S = "━" * 22
+_FOOT = "© DDXSTORE • @ddx22"
+
+
+def _lv(label, value, emoji=""):
+    em = f"{emoji}  " if emoji else "    "
+    return f"{em}<b>{label:<8}</b>  »  {value}"
+
+
 def get_country_info_text(match, use_arabic):
     country_name = match["name"]
     capital = match.get("capital", "N/A")
@@ -438,50 +447,38 @@ def get_country_info_text(match, use_arabic):
         currency = city_data.get("currency", currency)
         continent = city_data.get("continent", continent)
 
-    if use_arabic:
-        display_name = match.get("ara") or country_name
-        return (
-            f"\U0001f30d Country Info\n\n"
-            f"\U0001f3f3\ufe0f Country: {display_name}\n"
-            f"\U0001f3d9 Capital: {capital}\n"
-            f"\U0001f4b0 Currency: {currency} ({currency_name})\n"
-            f"\U0000260e Phone Code: {phone_code}\n"
-            f"\U0001f30e Continent: {continent}\n\n"
-            f"\u00a9 DDXSTORE"
-        )
-    else:
-        return (
-            f"\U0001f30d Country Info\n\n"
-            f"\U0001f3f3\ufe0f Country: {country_name}\n"
-            f"\U0001f3d9 Capital: {capital}\n"
-            f"\U0001f4b0 Currency: {currency} ({currency_name})\n"
-            f"\U0000260e Phone Code: {phone_code}\n"
-            f"\U0001f30e Continent: {continent}\n\n"
-            f"\u00a9 DDXSTORE"
-        )
+    display_name = (match.get("ara") or country_name) if use_arabic else country_name
+    cur_full = f"{currency}  ({currency_name})" if currency_name else currency
+
+    return (
+        f"{_S}\n"
+        f"    🌍  <b>DDX COUNTRY INFO</b>\n"
+        f"{_S}\n"
+        f"{_lv('Country', display_name, '🏳️')}\n"
+        f"{_lv('Capital', capital, '🏙')}\n"
+        f"{_lv('Currency', cur_full, '💰')}\n"
+        f"{_lv('Phone', phone_code, '📞')}\n"
+        f"{_lv('Continent', continent, '🌐')}\n"
+        f"{_S}\n"
+        f"    <i>{_FOOT}</i>"
+    )
 
 
 def get_address_text(country_name, use_arabic=False):
     addr = get_random_address(country_name, use_arabic)
-
-    city_data = CITY_DATA.get(country_name, {})
-    country_emoji = ""
-    for key, val in CITY_DATA.items():
-        if key.lower() == country_name.lower():
-            country_emoji = ""
-            break
+    phone = CITY_DATA.get(country_name, {}).get("phone_code", addr.get("phone", "—"))
 
     return (
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-        f"   \U0001f4cd  DDXSTORE \u2014 Address Gen\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n"
-        f"\U0001f464  Name     \u2502  {addr['full_name']}\n"
-        f"\U0001f30d  Country  \u2502  {country_name}\n"
-        f"\U0001f3d9  City     \u2502  {addr['city']}\n"
-        f"\U0001f3e0  Street   \u2502  {addr['street']}\n"
-        f"\U0001f4cd  State    \u2502  {addr['state']}\n"
-        f"\U0001f4ee  ZIP      \u2502  {addr['zip']}\n\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-        f"   \u00a9 DDXSTORE \u2022 @ddx22\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+        f"{_S}\n"
+        f"    📍  <b>DDX ADDRESS GEN</b>\n"
+        f"{_S}\n"
+        f"{_lv('Name', addr.get('full_name') or '—', '🪪')}\n"
+        f"{_lv('Country', country_name, '🌍')}\n"
+        f"{_lv('City', addr.get('city') or '—', '🏙')}\n"
+        f"{_lv('Street', addr.get('street') or '—', '🛣')}\n"
+        f"{_lv('State', addr.get('state') or '—', '📌')}\n"
+        f"{_lv('ZIP', addr.get('zip') or '—', '📮')}\n"
+        f"{_lv('Phone', phone, '📞')}\n"
+        f"{_S}\n"
+        f"    <i>{_FOOT}</i>"
     )

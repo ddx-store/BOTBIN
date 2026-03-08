@@ -6,6 +6,7 @@ from bot.database.queries import is_user_banned, increment_request_count, increm
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
 from bot.services.i18n import MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD, BTN_GENERATE_AGAIN
+from bot.utils.formatter import fake_msg
 from bot.services.country_service import (
     FIRST_NAMES_MALE, FIRST_NAMES_FEMALE, LAST_NAMES,
     generate_zip, CITY_DATA,
@@ -87,29 +88,7 @@ def generate_fake_identity():
 
 
 def build_fake_msg(fake):
-    return (
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-        f"   \U0001f464  DDXSTORE \u2014 Fake ID\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n"
-        f"\U0001f464  Name     \u2502  {fake['name']}\n"
-        f"\U0001f4e7  Email    \u2502  {fake['email']}\n"
-        f"\U0001f512  Pass     \u2502  {fake['password']}\n"
-        f"\U0001f382  DOB      \u2502  {fake['dob']}\n"
-        f"\U0001f4c4  SSN      \u2502  {fake['ssn']}\n"
-        f"\u260e  Phone    \u2502  {fake['phone']}\n\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n"
-        f"\U0001f30d  Country  \u2502  {fake['country']}\n"
-        f"\U0001f3d9  City     \u2502  {fake['city']}\n"
-        f"\U0001f3e0  Street   \u2502  {fake['street']}\n"
-        f"\U0001f4cd  State    \u2502  {fake['state']}\n"
-        f"\U0001f4ee  ZIP      \u2502  {fake['zip']}\n\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n"
-        f"\U0001f310  IP       \u2502  {fake['ip']}\n"
-        f"\U0001f4bb  UA       \u2502  {fake['useragent']}\n\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-        f"   \u00a9 DDXSTORE \u2022 @ddx22\n"
-        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-    )
+    return fake_msg(fake)
 
 
 async def fake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,7 +115,7 @@ async def fake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fake = generate_fake_identity()
     msg = build_fake_msg(fake)
     keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data="fake_regen")]]
-    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
 async def fake_regen_callback(query, user):
@@ -144,6 +123,6 @@ async def fake_regen_callback(query, user):
     msg = build_fake_msg(fake)
     keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data="fake_regen")]]
     try:
-        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     except Exception:
         pass

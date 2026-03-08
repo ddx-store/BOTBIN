@@ -5,6 +5,7 @@ from bot.database.queries import is_user_banned, increment_request_count, increm
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
 from bot.utils.bin_lookup import bin_lookup
+from bot.utils.formatter import bin_lookup_msg
 from bot.services.i18n import (
     MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD,
     MSG_BIN_EXAMPLE, MSG_BIN_LOOKUP, MSG_BIN_ERROR,
@@ -49,23 +50,8 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     wait_msg = await update.message.reply_text(MSG_BIN_LOOKUP)
     try:
         info = await bin_lookup(bin_input[:8])
-        prepaid_text = "Yes" if info.get("prepaid") else "No" if info.get("prepaid") is False else "N/A"
-        msg = (
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-            "   \U0001f4b3  DDXSTORE \u2014 BIN Lookup\n"
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n"
-            f"\U0001f522  BIN      \u2502  {bin_input[:6]}\n"
-            f"\U0001f3e6  Brand    \u2502  {info['scheme']}\n"
-            f"\U0001f4c4  Type     \u2502  {info['type']}\n"
-            f"\u2b50  Level    \u2502  {info['level']}\n"
-            f"\U0001f3e0  Bank     \u2502  {info['bank']}\n"
-            f"\U0001f30d  Country  \u2502  {info['country']}  {info['emoji']}\n"
-            f"\U0001f4b0  Prepaid  \u2502  {prepaid_text}\n\n"
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-            "   \u00a9 DDXSTORE \u2022 @ddx22\n"
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-        )
-        await wait_msg.edit_text(msg)
+        msg = bin_lookup_msg(bin_input, info)
+        await wait_msg.edit_text(msg, parse_mode="HTML")
     except Exception as e:
         logger.error(f"BIN command error: {e}")
         await wait_msg.edit_text(MSG_BIN_ERROR)

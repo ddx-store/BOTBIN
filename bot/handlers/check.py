@@ -6,6 +6,7 @@ from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
 from bot.utils.luhn import is_valid_luhn
 from bot.utils.bin_lookup import bin_lookup
+from bot.utils.formatter import chk_msg
 from bot.services.i18n import (
     MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD,
     MSG_CHK_EXAMPLE, MSG_CHK_CHECKING, MSG_ERROR,
@@ -52,34 +53,8 @@ async def chk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         valid = is_valid_luhn(card_number)
         info = await bin_lookup(card_number[:6])
-
-        if valid:
-            status_icon = "\u2705"
-            status_text = "VALID"
-            luhn_text = "Luhn Valid \u2714"
-        else:
-            status_icon = "\u274c"
-            status_text = "INVALID"
-            luhn_text = "Luhn Invalid \u2718"
-
-        masked = card_number[:6] + "\u2022" * (len(card_number) - 10) + card_number[-4:]
-
-        msg = (
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-            f"   {status_icon}  DDXSTORE \u2014 Card Check\n"
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n"
-            f"\U0001f4b3  Card     \u2502  {masked}\n"
-            f"\U0001f50d  Status   \u2502  {status_text}\n"
-            f"\U0001f9ee  Luhn     \u2502  {luhn_text}\n"
-            f"\U0001f3e6  Brand    \u2502  {info['scheme']}\n"
-            f"\U0001f4c4  Type     \u2502  {info['type']}\n"
-            f"\U0001f3e0  Bank     \u2502  {info['bank']}\n"
-            f"\U0001f30d  Country  \u2502  {info['country']}  {info['emoji']}\n\n"
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-            "   \u00a9 DDXSTORE \u2022 @ddx22\n"
-            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-        )
-        await wait_msg.edit_text(msg)
+        msg = chk_msg(card_number, valid, info)
+        await wait_msg.edit_text(msg, parse_mode="HTML")
     except Exception as e:
         logger.error(f"Chk error: {e}")
         await wait_msg.edit_text(MSG_ERROR)
