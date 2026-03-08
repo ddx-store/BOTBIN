@@ -10,7 +10,6 @@ from bot.utils.card_generator import generate_cards
 from bot.utils.bin_lookup import bin_lookup
 from bot.utils.queue_manager import enqueue_task, LARGE_GEN_THRESHOLD
 from bot.utils.formatter import gen_msg
-from bot.services.country_service import get_random_address
 from bot.services.i18n import (
     MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD, MSG_PROCESSING, MSG_ERROR,
     MSG_INVALID_BIN, MSG_GEN_EXAMPLE, MSG_QUEUED, MSG_QUEUE_FULL, BTN_GENERATE_AGAIN,
@@ -34,17 +33,8 @@ async def format_gen_response(user, bin_input, count=DEFAULT_CARD_COUNT, fixed_m
         info = {"scheme": "N/A", "type": "N/A", "bank": "N/A", "country": "N/A", "emoji": "\U0001f3f3\ufe0f"}
 
     cards = generate_cards(prefix, count, fixed_month, fixed_year)
-
-    addr = None
-    if info.get("country", "N/A") != "N/A":
-        try:
-            a = get_random_address(info["country"])
-            if a:
-                addr = a
-        except Exception:
-            pass
-
-    msg = gen_msg(user, prefix, info, cards, addr)
+    msg = gen_msg(user, prefix, info, cards,
+                  bin_input=bin_input, fixed_month=fixed_month, fixed_year=fixed_year)
 
     callback_data = f"regen_{prefix}_{count}"
     if fixed_month and fixed_year:
