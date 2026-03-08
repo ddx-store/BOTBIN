@@ -161,18 +161,22 @@ async def fake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     fake = generate_fake_identity(resolved)
     msg  = build_fake_msg(fake)
-    cb   = f"fake_regen_{resolved}" if resolved else "fake_regen"
+    cb_country = resolved.replace(" ", "+") if resolved else ""
+    cb   = f"fake_regen_{cb_country}" if cb_country else "fake_regen"
     keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=cb)]]
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
 async def fake_regen_callback(query, user):
     data = query.data
-    country = data[len("fake_regen_"):] if data.startswith("fake_regen_") else None
-    fake = generate_fake_identity(country if country else None)
+    country = None
+    if data.startswith("fake_regen_"):
+        country = data[len("fake_regen_"):].replace("+", " ")
+        if not country:
+            country = None
+    fake = generate_fake_identity(country)
     msg  = build_fake_msg(fake)
-    cb   = data
-    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=cb)]]
+    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=data)]]
     try:
         await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     except Exception:

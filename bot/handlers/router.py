@@ -6,7 +6,7 @@ from bot.database.bin_db import log_request
 from bot.utils.validators import is_bin_pattern
 from bot.utils.bin_lookup import bin_lookup
 from bot.utils.rate_limiter import check_rate_limit, check_flood
-from bot.utils.formatter import bin_lookup_msg, auto_gen_msg
+from bot.utils.formatter import bin_lookup_msg
 from bot.services.country_service import find_country, get_country_info_text
 from bot.services.i18n import DEFAULT_REPLY, MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD, BTN_GENERATE_AGAIN
 from bot.config.settings import ADMIN_ID, DEFAULT_CARD_COUNT
@@ -87,18 +87,9 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log_request(user.id, "auto_gen", digit_part[:6])
         increment_request_stat()
         increment_request_count(user.id)
-        from bot.utils.card_generator import generate_cards
-        from bot.utils.bin_lookup import bin_lookup as _bl
-        try:
-            info = await _bl(digit_part[:6])
-        except Exception:
-            info = {"scheme": "N/A", "type": "N/A", "bank": "N/A",
-                    "country": "N/A", "emoji": "\U0001f3f3\ufe0f"}
-        cards = generate_cards(digit_part, DEFAULT_CARD_COUNT)
-        msg = auto_gen_msg(user, digit_part, info, cards)
-        callback_data = f"regen_{digit_part}_{DEFAULT_CARD_COUNT}"
-        keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=callback_data)]]
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        from bot.handlers.gen import format_gen_response
+        msg, markup = await format_gen_response(user, digit_part, DEFAULT_CARD_COUNT)
+        await update.message.reply_text(msg, reply_markup=markup, parse_mode="HTML")
         return
 
     if is_bin_pattern(text):
