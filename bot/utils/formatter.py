@@ -64,7 +64,7 @@ def gen_msg(user, prefix: str, info: dict, cards: list,
     country = _country_str(info, upper=True)
     fmt_str = _build_format(bin_input or prefix, fixed_month, fixed_year)
 
-    card_lines = [c["number"] + "|" + c["month"] + "|" + c["year"] + "|" + c["cvv"] for c in cards]
+    card_lines = [_code(c["number"] + "|" + c["month"] + "|" + c["year"] + "|" + c["cvv"]) for c in cards]
 
     parts = [
         "<b>DDXSTORE" + ARROW + "CC Generator</b>",
