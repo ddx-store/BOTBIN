@@ -435,28 +435,21 @@ def _row(label: str, value: str, code: bool = False) -> str:
 
 def get_country_info_text(match, use_arabic):
     country_name = match["name"]
-    capital      = match.get("capital", "N/A")
-    currency     = match.get("currency_code", "N/A")
-    currency_name = match.get("currency_name", "")
-    continent    = match.get("continent", "N/A")
-
-    city_data = CITY_DATA.get(country_name, {})
-    if city_data:
-        currency  = city_data.get("currency", currency)
-        continent = city_data.get("continent", continent)
+    capital = match.get("capital", "N/A")
 
     display_name = (match.get("ara") or country_name) if use_arabic else country_name
-    cur_full = currency + "  (" + currency_name + ")" if currency_name else currency
     rand_name = generate_full_name()
+    addr = get_random_address(country_name, use_arabic)
 
     lines = [
         "    \U0001f30d  <b>COUNTRY INFO</b>",
         _SEP,
-        _row("Name",      rand_name,    code=True),
-        _row("Country",   display_name),
-        _row("Capital",   capital),
-        _row("Currency",  cur_full),
-        _row("Continent", continent),
+        _row("Name",    rand_name,                       code=True),
+        _row("Country", display_name),
+        _row("Capital", capital),
+        _row("Street",  addr.get("street") or "\u2014",  code=True),
+        _row("State",   addr.get("state")  or "\u2014"),
+        _row("ZIP",     addr.get("zip")    or "\u2014",  code=True),
         _SEP,
         "    <i>" + _FOOT + "</i>",
     ]
