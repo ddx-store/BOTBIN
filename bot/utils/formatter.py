@@ -51,7 +51,7 @@ def _build_format(bin_input: str, fixed_month: str = None, fixed_year: str = Non
 
 def gen_msg(user, prefix: str, info: dict, cards: list,
             bin_input: str = None, fixed_month: str = None,
-            fixed_year: str = None, addr: dict = None) -> str:
+            fixed_year: str = None, checked: int = None) -> str:
 
     uname = ("@" + user.username) if user.username else (user.first_name or str(user.id))
 
@@ -64,7 +64,12 @@ def gen_msg(user, prefix: str, info: dict, cards: list,
     country = _country_str(info, upper=True)
     fmt_str = _build_format(bin_input or prefix, fixed_month, fixed_year)
 
-    card_lines = [_code(c["number"] + "|" + c["month"] + "|" + c["year"] + "|" + c["cvv"]) for c in cards]
+    total = len(cards)
+    passed = checked if checked is not None else total
+    chk_line = "\u2022 <b>Checked</b>" + ARROW + str(passed) + "/" + str(total) + " \u2705"
+
+    card_lines = [_code(c["number"] + "|" + c["month"] + "|" + c["year"] + "|" + c["cvv"]) + " \u2705"
+                  for c in cards]
 
     parts = [
         "<b>DDXSTORE" + ARROW + "CC Generator</b>",
@@ -74,6 +79,7 @@ def gen_msg(user, prefix: str, info: dict, cards: list,
         "\u2022 <b>Bank</b>" + ARROW + bank,
         "\u2022 <b>Country</b>" + ARROW + country,
         "\u2022 <b>Format</b>" + ARROW + _code(fmt_str),
+        chk_line,
         SEP,
         "",
     ] + card_lines + [

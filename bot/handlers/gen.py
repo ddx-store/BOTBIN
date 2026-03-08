@@ -7,6 +7,7 @@ from bot.database.queries import (
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
 from bot.utils.card_generator import generate_cards
+from bot.utils.luhn import is_valid_luhn
 from bot.utils.bin_lookup import bin_lookup
 from bot.utils.queue_manager import enqueue_task, LARGE_GEN_THRESHOLD
 from bot.utils.formatter import gen_msg
@@ -32,9 +33,11 @@ async def format_gen_response(user, bin_input, count=DEFAULT_CARD_COUNT, fixed_m
     except Exception:
         info = {"scheme": "N/A", "type": "N/A", "bank": "N/A", "country": "N/A", "emoji": "\U0001f3f3\ufe0f"}
 
-    cards = generate_cards(prefix, count, fixed_month, fixed_year)
+    raw_cards = generate_cards(prefix, count, fixed_month, fixed_year)
+    cards = [c for c in raw_cards if is_valid_luhn(c["number"])]
     msg = gen_msg(user, prefix, info, cards,
-                  bin_input=bin_input, fixed_month=fixed_month, fixed_year=fixed_year)
+                  bin_input=bin_input, fixed_month=fixed_month, fixed_year=fixed_year,
+                  checked=len(cards))
 
     callback_data = f"regen_{prefix}_{count}"
     if fixed_month and fixed_year:
