@@ -8,9 +8,16 @@ DB_PATH = os.path.join("data", "bin_cache.db")
 os.makedirs("data", exist_ok=True)
 
 
+def _flag(code: str) -> str:
+    if not code or len(code) != 2:
+        return "\U0001f3f3\ufe0f"
+    return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code.upper())
+
+
 def _conn():
-    con = sqlite3.connect(DB_PATH)
+    con = sqlite3.connect(DB_PATH, timeout=10)
     con.row_factory = sqlite3.Row
+    con.execute("PRAGMA journal_mode=WAL")
     return con
 
 
@@ -66,14 +73,15 @@ def get_bin_local(bin_number: str) -> dict | None:
                     (bin_number[:6],),
                 )
                 track_bin_usage(bin_number[:6])
+                cc = row["country_code"] or ""
                 return {
                     "scheme": row["scheme"] or "N/A",
                     "type": row["type"] or "N/A",
                     "brand": row["brand"] or "N/A",
                     "bank": row["bank"] or "N/A",
                     "country": row["country"] or "N/A",
-                    "country_code": row["country_code"] or "N/A",
-                    "emoji": row["emoji"] or "\U0001f3f3\ufe0f",
+                    "country_code": cc or "N/A",
+                    "emoji": _flag(cc),
                     "level": row["level"] or "N/A",
                     "prepaid": bool(row["prepaid"]) if row["prepaid"] is not None else None,
                 }
