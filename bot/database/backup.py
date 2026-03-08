@@ -56,3 +56,21 @@ def get_local_user_ids():
     except Exception:
         pass
     return []
+
+
+def get_all_local_users() -> list:
+    try:
+        if USERS_JSON.exists():
+            data = json.loads(USERS_JSON.read_text(encoding="utf-8"))
+            result = []
+            for uid, info in data.items():
+                result.append((
+                    int(uid),
+                    info.get("username"),
+                    info.get("first_name"),
+                    info.get("joined_at", ""),
+                ))
+            return sorted(result, key=lambda x: x[3], reverse=True)
+    except Exception:
+        pass
+    return []

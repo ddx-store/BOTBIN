@@ -176,3 +176,39 @@ def get_top_actions(limit: int = 5) -> list:
             return [(r["action"], r["cnt"]) for r in rows]
     except Exception:
         return []
+
+
+def get_user_summary(limit: int = 20) -> list:
+    try:
+        with _conn() as con:
+            rows = con.execute(
+                """SELECT user_id, COUNT(*) as total
+                   FROM request_log
+                   GROUP BY user_id
+                   ORDER BY total DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            return [(r["user_id"], r["total"]) for r in rows]
+    except Exception:
+        return []
+
+
+def get_recent_bin_lookups(limit: int = 15) -> list:
+    try:
+        with _conn() as con:
+            rows = con.execute(
+                """SELECT r.user_id, r.detail, r.ts,
+                          b.scheme, b.type, b.bank, b.country, b.emoji
+                   FROM request_log r
+                   LEFT JOIN bin_data b ON b.bin = substr(r.detail, 1, 6)
+                   WHERE r.action IN ('bin', 'gen')
+                   ORDER BY r.ts DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            return [
+                (r["user_id"], r["detail"], r["ts"],
+                 r["scheme"], r["type"], r["bank"], r["country"], r["emoji"])
+                for r in rows
+            ]
+    except Exception:
+        return []
