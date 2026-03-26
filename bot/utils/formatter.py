@@ -269,28 +269,40 @@ def chk_msg(card_number: str, valid: bool, info: dict,
 
 # ─── Fake Identity ────────────────────────────────────────────────────────────
 
+_FAKE_SEP = "\u2501" * 14   # ━━━━━━━━━━━━━━
+
 def fake_msg(fake: dict) -> str:
-    ua = _trim(fake.get("useragent") or "\u2014", 35)
-    parts = [
-        SEP_LONG,
-        "    \U0001f464  <b>DDX FAKE IDENTITY</b>",
-        SEP_LONG,
-        _lv("Name",    _e(fake.get("name") or "\u2014"), "\U0001f9e5"),
-        _lv("Email",   _code(fake.get("email") or "\u2014"), "\U0001f4e7"),
-        _lv("Pass",    _code(fake.get("password") or "\u2014"), "\U0001f511"),
-        _lv("DOB",     _e(fake.get("dob") or "\u2014"), "\U0001f382"),
-        _lv("SSN",     _code(fake.get("ssn") or "\u2014"), "\U0001f4c4"),
-        _lv("Phone",   _e(fake.get("phone") or "\u2014"), "\u260e"),
-        SEP_LONG,
-        _lv("Country", _e(fake.get("country") or "\u2014"), "\U0001f30d"),
-        _lv("City",    _e(fake.get("city") or "\u2014"), "\U0001f3d9"),
-        _lv("Street",  _e(fake.get("street") or "\u2014"), "\U0001f6e3"),
-        _lv("State",   _e(fake.get("state") or "\u2014"), "\U0001f4cd"),
-        _lv("ZIP",     _e(fake.get("zip") or "\u2014"), "\U0001f4ee"),
-        SEP_LONG,
-        _lv("IP", _code(fake.get("ip") or "\u2014"), "\U0001f310"),
-        _lv("UA", _code(ua), "\U0001f4bb"),
-        SEP_LONG,
-        "    <i>" + FOOT + "</i>",
+    country   = (fake.get("country") or "").upper()
+    flag      = fake.get("flag") or ""
+    name      = _e(fake.get("name") or "\u2014")
+    gender    = _e(fake.get("gender") or "\u2014")
+    street    = _e(fake.get("street") or "\u2014")
+    city      = _e(fake.get("city") or "\u2014")
+    state     = _e(fake.get("state") or "\u2014")
+    zipcode   = _e(fake.get("zip") or "\u2014")
+    phone     = _e(fake.get("phone") or "\u2014")
+    email     = _e(fake.get("email") or "\u2014")
+    password  = _e(fake.get("password") or "\u2014")
+    dob       = _e(fake.get("dob") or "\u2014")
+    ssn       = _e(fake.get("ssn") or "\u2014")
+    ip        = _e(fake.get("ip") or "\u2014")
+
+    lines = [
+        f"\U0001f4cd {_e(country)} \u2014 Fake Identity {flag}",
+        _FAKE_SEP,
+        f"\U0001f194 Full Name: <code>{name}</code>",
+        f"\U0001f464 Gender: {gender}",
+        f"\U0001f3e0 Street Address: <code>{street}</code>",
+        f"\U0001f3d9\ufe0f City/Town: {city}",
+        f"\U0001f5fa\ufe0f State/Region: {state}",
+        f"\U0001f4ee Postal Code: <code>{zipcode}</code>",
+        f"\U0001f4de Phone Number: <code>{phone}</code>",
+        f"\U0001f4e7 Email: <code>{email}</code>",
+        f"\U0001f511 Password: <code>{password}</code>",
+        f"\U0001f382 Date of Birth: <code>{dob}</code>",
+        f"\U0001f4c4 SSN: <code>{ssn}</code>",
+        f"\U0001f310 IP Address: <code>{ip}</code>",
+        f"\U0001f30d Country: {_e(country)} {flag}",
+        _FAKE_SEP,
     ]
-    return "\n".join(parts)
+    return "\n".join(lines)

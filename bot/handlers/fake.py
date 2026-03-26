@@ -9,7 +9,7 @@ from bot.services.i18n import MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD, BTN_GENERAT
 from bot.utils.formatter import fake_msg
 from bot.services.country_service import (
     FIRST_NAMES_MALE, FIRST_NAMES_FEMALE, LAST_NAMES,
-    generate_zip, CITY_DATA, generate_phone,
+    generate_zip, CITY_DATA, generate_phone, _get_flag,
 )
 from bot.utils.logger import get_logger
 
@@ -121,15 +121,18 @@ def generate_fake_identity(country: str = None):
     zipcode = generate_zip(data["zip_format"])
 
     phone_code = data.get("phone_code", "+1")
+    gender = random.choice(["Male", "Female"])
 
     return {
         "name": f"{first} {last}",
+        "gender": gender,
         "email": generate_email(first, last),
         "password": generate_password(),
         "dob": generate_dob(),
         "ssn": generate_ssn(),
         "phone": generate_phone(phone_code),
         "country": country,
+        "flag": _get_flag(country),
         "city": city,
         "street": f"{street_num} {street}",
         "state": state,
