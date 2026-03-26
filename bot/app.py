@@ -47,8 +47,8 @@ async def button_callback(update, context):
     elif data.startswith("fake_"):
         await query.answer("\U0001f504")
         await fake_regen_callback(query, user)
-    elif (data.startswith("admin_") or data.startswith("ban_")
-          or data.startswith("unban_") or data.startswith("unpremium_")):
+    elif (data.startswith("admin_") or data.startswith("unban_")
+          or data.startswith("unpremium_")):
         await admin_callback(query, user)
 
 

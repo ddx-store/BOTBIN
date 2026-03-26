@@ -226,6 +226,65 @@ def increment_gen_count(user_id: int):
     )
 
 
+def delete_user(user_id: int) -> bool:
+    if not DATABASE_URL:
+        return False
+    result = execute_query(
+        "DELETE FROM bot_users WHERE user_id = %s",
+        (user_id,),
+    )
+    return result is not None and result > 0
+
+
+def get_users_page(page: int = 0, per_page: int = 8):
+    if not DATABASE_URL:
+        return [], 0
+    offset = page * per_page
+    rows = execute_query(
+        """SELECT user_id, username, first_name, is_banned, is_premium,
+                  request_count, gen_count, joined_at
+           FROM bot_users
+           ORDER BY joined_at DESC
+           LIMIT %s OFFSET %s""",
+        (per_page, offset), fetch=True,
+    ) or []
+    total_row = execute_query("SELECT COUNT(*) FROM bot_users", fetch_one=True)
+    total = total_row[0] if total_row else 0
+    return rows, total
+
+
+def search_user(query_str: str):
+    if not DATABASE_URL:
+        return None
+    q = query_str.lstrip("@")
+    if q.isdigit():
+        result = execute_query(
+            """SELECT user_id, username, first_name, is_banned, is_premium,
+                      request_count, gen_count, joined_at
+               FROM bot_users WHERE user_id = %s""",
+            (int(q),), fetch_one=True,
+        )
+    else:
+        result = execute_query(
+            """SELECT user_id, username, first_name, is_banned, is_premium,
+                      request_count, gen_count, joined_at
+               FROM bot_users WHERE LOWER(username) = LOWER(%s)""",
+            (q,), fetch_one=True,
+        )
+    if not result:
+        return None
+    return {
+        "user_id":       result[0],
+        "username":      result[1],
+        "first_name":    result[2],
+        "is_banned":     result[3] or False,
+        "is_premium":    result[4] or False,
+        "request_count": result[5] or 0,
+        "gen_count":     result[6] or 0,
+        "joined_at":     result[7],
+    }
+
+
 def get_user_lang(user_id):
     if not DATABASE_URL:
         return "en"

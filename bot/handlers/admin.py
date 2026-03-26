@@ -1,11 +1,11 @@
 import re
 import asyncio
-import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.database.queries import (
     get_detailed_stats, get_recent_users, get_banned_users,
     get_all_users, set_ban_status, set_premium, get_premium_users_count,
+    delete_user, get_users_page, search_user, get_user_info,
 )
 from bot.database.backup import USERS_JSON, get_all_local_users
 from bot.database.bin_db import (
@@ -18,9 +18,12 @@ from bot.utils.logger import get_logger
 
 logger = get_logger("admin")
 
-SEP = "─" * 20
+S  = "━" * 20
+S2 = "─" * 20
+PER_PAGE = 8
 
 _bin_scheduler = None
+
 
 def set_bin_scheduler(scheduler):
     global _bin_scheduler
@@ -31,44 +34,119 @@ def is_admin(user_id):
     return ADMIN_ID and user_id == ADMIN_ID
 
 
+# ─── Keyboards ────────────────────────────────────────────────────────────────
+
 def _main_keyboard():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📊 إحصائيات",          callback_data="admin_stats")],
-        [InlineKeyboardButton("👥 المشتركون",           callback_data="admin_all_users")],
-        [InlineKeyboardButton("📈 نشاط المستخدمين",    callback_data="admin_user_activity")],
-        [InlineKeyboardButton("💳 سجل BIN",            callback_data="admin_bin_log")],
-        [InlineKeyboardButton("🗄 قاعدة BIN",          callback_data="admin_bin_db")],
-        [InlineKeyboardButton("🚫 المحظورون",           callback_data="admin_ban_list")],
-        [InlineKeyboardButton("💎 المشتركون Premium",  callback_data="admin_premium_list")],
-        [InlineKeyboardButton("📢 رسالة جماعية",       callback_data="admin_broadcast")],
-        [InlineKeyboardButton("💾 نسخ احتياطي",        callback_data="admin_backup_file")],
+        [
+            InlineKeyboardButton("📊 الإحصائيات",       callback_data="admin_stats"),
+            InlineKeyboardButton("👥 المستخدمون",        callback_data="admin_ul_0"),
+        ],
+        [
+            InlineKeyboardButton("🚫 المحظورون",          callback_data="admin_ban_list"),
+            InlineKeyboardButton("💎 Premium",            callback_data="admin_pl"),
+        ],
+        [
+            InlineKeyboardButton("🗄 قاعدة BIN",          callback_data="admin_bin_db"),
+            InlineKeyboardButton("📋 سجل BIN",            callback_data="admin_bin_log"),
+        ],
+        [InlineKeyboardButton("📢 بث رسالة: /broadcast <msg>", callback_data="admin_bc_info")],
+        [InlineKeyboardButton("💾 نسخة احتياطية",          callback_data="admin_backup_file")],
     ])
 
 
-def _back_btn():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")]])
+def _back_btn(to="admin_back"):
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data=to)]])
 
+
+def _user_actions_keyboard(uid: int, is_banned: bool, is_premium: bool, page: int = 0):
+    ban_btn = (
+        InlineKeyboardButton("✅ رفع الحظر",  callback_data=f"admin_ub_{uid}")
+        if is_banned else
+        InlineKeyboardButton("🚫 حظر",         callback_data=f"admin_ban_{uid}")
+    )
+    prem_btn = (
+        InlineKeyboardButton("🔓 إلغاء Premium", callback_data=f"admin_rp_{uid}")
+        if is_premium else
+        InlineKeyboardButton("💎 منح Premium",   callback_data=f"admin_gp_{uid}")
+    )
+    return InlineKeyboardMarkup([
+        [ban_btn, prem_btn],
+        [InlineKeyboardButton("🗑 حذف المستخدم", callback_data=f"admin_del_{uid}")],
+        [InlineKeyboardButton("🔙 قائمة المستخدمين", callback_data=f"admin_ul_{page}")],
+        [InlineKeyboardButton("🏠 الرئيسية",          callback_data="admin_back")],
+    ])
+
+
+def _confirm_delete_keyboard(uid: int):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ تأكيد الحذف", callback_data=f"admin_dc_{uid}"),
+            InlineKeyboardButton("❌ إلغاء",        callback_data=f"admin_uc_{uid}"),
+        ],
+    ])
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _build_main_msg(total, active, banned, gens, bin_lookups, requests, today, premium_c):
+    return (
+        f"{S}\n"
+        f"   🛠  DDXSTORE — لوحة التحكم\n"
+        f"{S}\n\n"
+        f"👥 المستخدمون    ┃ <b>{total:,}</b>\n"
+        f"✅ نشط            ┃ <b>{active:,}</b>\n"
+        f"🚫 محظور          ┃ <b>{banned:,}</b>\n"
+        f"💎 Premium        ┃ <b>{premium_c:,}</b>\n\n"
+        f"🃏 توليد كروت    ┃ <b>{gens:,}</b>\n"
+        f"🔍 بحث BIN       ┃ <b>{bin_lookups:,}</b>\n"
+        f"📊 إجمالي طلبات  ┃ <b>{requests:,}</b>\n"
+        f"📅 اليوم          ┃ <b>{today:,}</b>\n"
+        f"{S}"
+    )
+
+
+def _build_user_card(info: dict) -> str:
+    uname    = f"@{info['username']}" if info.get("username") else "—"
+    fname    = info.get("first_name") or "—"
+    uid      = info["user_id"]
+    joined   = str(info.get("joined_at") or "—")[:10]
+    reqs     = info.get("request_count", 0)
+    gens     = info.get("gen_count", 0)
+    prem     = "💎 Premium" if info.get("is_premium") else "🆓 Free"
+    status   = "🚫 محظور" if info.get("is_banned") else "✅ نشط"
+    prem_exp = ""
+    if info.get("is_premium") and info.get("premium_until"):
+        prem_exp = f"  <i>(حتى {str(info['premium_until'])[:10]})</i>"
+
+    return (
+        f"{S}\n"
+        f"   👤  بطاقة المستخدم\n"
+        f"{S}\n\n"
+        f"🔗 المعرّف   ┃  {uname}\n"
+        f"📛 الاسم     ┃  {fname}\n"
+        f"🆔 ID        ┃  <code>{uid}</code>\n"
+        f"📅 انضم      ┃  {joined}\n"
+        f"{S2}\n"
+        f"📊 الطلبات   ┃  <b>{reqs:,}</b>\n"
+        f"🃏 الكروت    ┃  <b>{gens:,}</b>\n"
+        f"🎖 عضوية    ┃  {prem}{prem_exp}\n"
+        f"🔒 الحالة    ┃  {status}\n"
+        f"{S}"
+    )
+
+
+# ─── Entry commands ───────────────────────────────────────────────────────────
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not is_admin(update.message.from_user.id):
         return
 
     total, active, banned, gens, bin_lookups, requests = get_detailed_stats()
-    today = get_total_requests_today()
-
-    msg = (
-        f"{SEP}\n"
-        f"   🛠  DDXSTORE — لوحة التحكم\n"
-        f"{SEP}\n\n"
-        f"👥 المشتركون   │ {total}\n"
-        f"✅ نشط          │ {active}\n"
-        f"🚫 محظور        │ {banned}\n\n"
-        f"🔄 توليد BIN    │ {gens}\n"
-        f"💳 بحث BIN      │ {bin_lookups}\n"
-        f"📊 طلبات اليوم │ {today}\n"
-        f"📈 إجمالي       │ {requests}"
-    )
-    await update.message.reply_text(msg, reply_markup=_main_keyboard())
+    today    = get_total_requests_today()
+    premium  = get_premium_users_count()
+    msg = _build_main_msg(total, active, banned, gens, bin_lookups, requests, today, premium)
+    await update.message.reply_text(msg, reply_markup=_main_keyboard(), parse_mode="HTML")
 
 
 async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -80,7 +158,9 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_id = int(context.args[0]) if context.args[0].isdigit() else 0
     if target_id and set_ban_status(target_id, True):
         logger.info(f"Admin banned user {target_id}")
-        await update.message.reply_text(f"🚫 تم حظر {target_id}")
+        await update.message.reply_text(f"🚫 تم حظر <code>{target_id}</code>", parse_mode="HTML")
+    else:
+        await update.message.reply_text("❌ المستخدم غير موجود أو حدث خطأ.")
 
 
 async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -92,7 +172,9 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_id = int(context.args[0]) if context.args[0].isdigit() else 0
     if target_id and set_ban_status(target_id, False):
         logger.info(f"Admin unbanned user {target_id}")
-        await update.message.reply_text(f"✅ تم رفع الحظر عن {target_id}")
+        await update.message.reply_text(f"✅ رُفع الحظر عن <code>{target_id}</code>", parse_mode="HTML")
+    else:
+        await update.message.reply_text("❌ المستخدم غير موجود أو حدث خطأ.")
 
 
 async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -116,9 +198,11 @@ async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if ok:
         note = f" لمدة {days} يوم" if days else " (دائم)"
         logger.info(f"Admin granted premium to {target_id}{note}")
-        await update.message.reply_text(f"💎 تم منح Premium لـ {target_id}{note}")
+        await update.message.reply_text(
+            f"💎 تم منح Premium لـ <code>{target_id}</code>{note}", parse_mode="HTML"
+        )
     else:
-        await update.message.reply_text("❌ لم يتم العثور على المستخدم أو حدث خطأ.")
+        await update.message.reply_text("❌ لم يتم العثور على المستخدم.")
 
 
 async def unpremium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -132,122 +216,72 @@ async def unpremium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ok = set_premium(target_id, False)
     if ok:
         logger.info(f"Admin revoked premium from {target_id}")
-        await update.message.reply_text(f"🔓 تم إلغاء Premium عن {target_id}")
+        await update.message.reply_text(
+            f"🔓 تم إلغاء Premium عن <code>{target_id}</code>", parse_mode="HTML"
+        )
     else:
-        await update.message.reply_text("❌ لم يتم العثور على المستخدم أو حدث خطأ.")
+        await update.message.reply_text("❌ لم يتم العثور على المستخدم.")
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not is_admin(update.message.from_user.id):
         return
-
     total, active, banned, gens, bin_lookups, requests = get_detailed_stats()
     today_reqs = get_total_requests_today()
     top_bins   = get_top_bins(5)
     db_size    = get_bin_db_size()
     cache_size = bin_cache.size()
     top_actions = get_top_actions(5)
+    premium    = get_premium_users_count()
 
     bin_lines = ""
     if top_bins:
-        bin_lines = "\n🏆 أكثر BIN طلباً:\n"
+        bin_lines = f"\n🏆 أكثر BIN طلباً:\n"
         for i, (b, c) in enumerate(top_bins, 1):
-            bin_lines += f"   {i}. {b} — {c}x\n"
+            bin_lines += f"   {i}. <code>{b}</code>  —  {c}x\n"
 
     action_lines = ""
     if top_actions:
-        action_lines = "\n📋 الأوامر الأكثر استخداماً:\n"
+        action_lines = f"\n📋 الأوامر الأكثر استخداماً:\n"
         for action, cnt in top_actions:
             action_lines += f"   • {action}: {cnt}\n"
 
     msg = (
-        f"{SEP}\n"
-        f"   📊  DDXSTORE — إحصائيات\n"
-        f"{SEP}\n\n"
-        f"👥 المشتركون    │ {total}\n"
-        f"✅ نشط           │ {active}\n"
-        f"🚫 محظور         │ {banned}\n\n"
-        f"🔄 توليد كروت   │ {gens}\n"
-        f"💳 بحث BIN       │ {bin_lookups}\n"
-        f"📈 إجمالي طلبات │ {requests}\n"
-        f"📅 طلبات اليوم  │ {today_reqs}\n\n"
-        f"🗄  قاعدة BIN    │ {db_size:,} إدخال\n"
-        f"⚡  الكاش        │ {cache_size} إدخال"
+        f"{S}\n"
+        f"   📊  إحصائيات مفصّلة\n"
+        f"{S}\n\n"
+        f"👥 المستخدمون    ┃ <b>{total:,}</b>\n"
+        f"✅ نشط            ┃ <b>{active:,}</b>\n"
+        f"🚫 محظور          ┃ <b>{banned:,}</b>\n"
+        f"💎 Premium        ┃ <b>{premium:,}</b>\n\n"
+        f"🃏 توليد كروت    ┃ <b>{gens:,}</b>\n"
+        f"🔍 بحث BIN       ┃ <b>{bin_lookups:,}</b>\n"
+        f"📊 إجمالي طلبات  ┃ <b>{requests:,}</b>\n"
+        f"📅 طلبات اليوم   ┃ <b>{today_reqs:,}</b>\n\n"
+        f"🗄 قاعدة BIN      ┃ <b>{db_size:,}</b> إدخال\n"
+        f"⚡ الكاش          ┃ <b>{cache_size}</b> إدخال"
         f"{bin_lines}"
-        f"{action_lines}\n"
-        f"{SEP}\n"
-        f"   © DDXSTORE • @ddx22\n"
-        f"{SEP}"
+        f"{action_lines}"
+        f"{S}"
     )
-    await update.message.reply_text(msg)
+    await update.message.reply_text(msg, parse_mode="HTML")
 
 
 async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not is_admin(update.message.from_user.id):
         return
-
     query_str = " ".join(context.args).strip() if context.args else ""
     if not query_str:
         await update.message.reply_text("❌ الاستخدام: /user <ID أو @username>")
         return
-
-    import json
-    from pathlib import Path
-    from bot.database.bin_db import get_user_summary, get_recent_bin_lookups
-
-    users_json = Path("data/users.json")
-    all_users = {}
-    if users_json.exists():
-        try:
-            all_users = json.loads(users_json.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-
-    found_uid, found_info = None, None
-    q = query_str.lstrip("@").lower()
-    for uid, info in all_users.items():
-        uname = (info.get("username") or "").lower()
-        if uid == q or uname == q:
-            found_uid = int(uid)
-            found_info = info
-            break
-
-    if not found_uid and q.isdigit():
-        found_uid = int(q)
-        found_info = all_users.get(q, {})
-
-    if not found_uid:
+    info = search_user(query_str)
+    if not info:
         await update.message.reply_text("❌ المستخدم غير موجود في قاعدة البيانات.")
         return
-
-    name_d  = found_info.get("first_name") or "—"
-    uname_d = f"@{found_info.get('username')}" if found_info.get("username") else "—"
-    joined  = (found_info.get("joined_at") or "—")[:10]
-
-    user_activity = {uid: total for uid, total in get_user_summary(200)}
-    total_reqs = user_activity.get(found_uid, 0)
-
-    recent_bins = [(detail[:6], scheme or "?", country or "?")
-                   for uid, detail, ts, scheme, typ, bank, country, emoji
-                   in get_recent_bin_lookups(50) if uid == found_uid][:5]
-
-    bin_lines = ""
-    if recent_bins:
-        bin_lines = "\n💳 آخر BINs:\n"
-        for b, s, c in recent_bins:
-            bin_lines += f"  • {b}  ({s} — {c})\n"
-
-    msg = (
-        f"👤 معلومات المستخدم\n{SEP}\n"
-        f"🔗 المعرف  :  {uname_d}\n"
-        f"📛 الاسم   :  {name_d}\n"
-        f"🆔 ID      :  {found_uid}\n"
-        f"📅 انضم    :  {joined}\n"
-        f"{SEP}\n"
-        f"📊 إجمالي الطلبات  :  {total_reqs}"
-        f"{bin_lines}"
-    )
-    await update.message.reply_text(msg)
+    uid = info["user_id"]
+    card = _build_user_card(info)
+    kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+    await update.message.reply_text(card, reply_markup=kb, parse_mode="HTML")
 
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -276,154 +310,246 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await status_msg.edit_text(f"✅ اكتمل الإرسال!\n\n✔ نجح: {success}\n✖ فشل: {failed}")
 
 
+# ─── Callback handler ─────────────────────────────────────────────────────────
+
 async def admin_callback(query, user):
     if not is_admin(user.id):
         return
 
     data = query.data
 
+    # ── رجوع للرئيسية ────────────────────────────────
     if data == "admin_back":
         total, active, banned, gens, bin_lookups, requests = get_detailed_stats()
-        today = get_total_requests_today()
-        msg = (
-            f"{SEP}\n"
-            f"   🛠  DDXSTORE — لوحة التحكم\n"
-            f"{SEP}\n\n"
-            f"👥 المشتركون   │ {total}\n"
-            f"✅ نشط          │ {active}\n"
-            f"🚫 محظور        │ {banned}\n\n"
-            f"🔄 توليد BIN    │ {gens}\n"
-            f"💳 بحث BIN      │ {bin_lookups}\n"
-            f"📊 طلبات اليوم │ {today}\n"
-            f"📈 إجمالي       │ {requests}"
-        )
-        await query.edit_message_text(msg, reply_markup=_main_keyboard())
+        today   = get_total_requests_today()
+        premium = get_premium_users_count()
+        msg = _build_main_msg(total, active, banned, gens, bin_lookups, requests, today, premium)
+        await query.edit_message_text(msg, reply_markup=_main_keyboard(), parse_mode="HTML")
 
+    # ── إحصائيات مفصّلة ──────────────────────────────
     elif data == "admin_stats":
         total, active, banned, gens, bin_lookups, requests = get_detailed_stats()
-        today_reqs = get_total_requests_today()
-        top_bins   = get_top_bins(5)
-        db_size    = get_bin_db_size()
-        cache_size = bin_cache.size()
+        today   = get_total_requests_today()
+        premium = get_premium_users_count()
+        top_bins = get_top_bins(5)
+        db_size  = get_bin_db_size()
+        cache_sz = bin_cache.size()
 
         bin_lines = ""
         if top_bins:
             bin_lines = "\n🏆 أكثر BIN طلباً:\n"
             for i, (b, c) in enumerate(top_bins, 1):
-                bin_lines += f"   {i}. {b} — {c}x\n"
+                bin_lines += f"   {i}. <code>{b}</code>  —  {c}x\n"
 
         msg = (
-            f"📊 الإحصائيات\n\n"
-            f"👥 المشتركون    │ {total}\n"
-            f"✅ نشط           │ {active}\n"
-            f"🚫 محظور         │ {banned}\n\n"
-            f"🔄 توليد كروت   │ {gens}\n"
-            f"💳 بحث BIN       │ {bin_lookups}\n"
-            f"📈 إجمالي طلبات │ {requests}\n"
-            f"📅 طلبات اليوم  │ {today_reqs}\n\n"
-            f"🗄  قاعدة BIN    │ {db_size:,} إدخال\n"
-            f"⚡  الكاش        │ {cache_size} إدخال"
+            f"{S}\n"
+            f"   📊  إحصائيات مفصّلة\n"
+            f"{S}\n\n"
+            f"👥 المستخدمون    ┃ <b>{total:,}</b>\n"
+            f"✅ نشط            ┃ <b>{active:,}</b>\n"
+            f"🚫 محظور          ┃ <b>{banned:,}</b>\n"
+            f"💎 Premium        ┃ <b>{premium:,}</b>\n\n"
+            f"🃏 توليد كروت    ┃ <b>{gens:,}</b>\n"
+            f"🔍 بحث BIN       ┃ <b>{bin_lookups:,}</b>\n"
+            f"📊 إجمالي طلبات  ┃ <b>{requests:,}</b>\n"
+            f"📅 اليوم          ┃ <b>{today:,}</b>\n\n"
+            f"🗄 قاعدة BIN      ┃ <b>{db_size:,}</b> إدخال\n"
+            f"⚡ الكاش          ┃ <b>{cache_sz}</b> إدخال"
             f"{bin_lines}"
+            f"{S}"
         )
-        await query.edit_message_text(msg, reply_markup=_back_btn())
+        await query.edit_message_text(msg, reply_markup=_back_btn(), parse_mode="HTML")
 
-    elif data == "admin_all_users":
-        users = get_all_local_users()
-        if not users:
-            await query.edit_message_text("لا يوجد مشتركون بعد.", reply_markup=_back_btn())
-            return
-
-        lines = [f"👥 المشتركون — {len(users)} مستخدم\n{SEP}"]
-        for uid, uname, fname, joined in users[:20]:
-            name = f"@{uname}" if uname else (fname or str(uid))
-            date_str = joined[:10] if joined else "—"
-            lines.append(f"• {name}  ({uid})\n  📅 {date_str}")
-
-        if len(users) > 20:
-            lines.append(f"\n... و {len(users) - 20} آخرين")
-
-        await query.edit_message_text("\n".join(lines), reply_markup=_back_btn())
-
-    elif data == "admin_user_activity":
-        activity = get_user_summary(20)
-        users_info = {uid: (uname, fname) for uid, uname, fname, _ in get_all_local_users()}
-
-        if not activity:
-            await query.edit_message_text("لا يوجد نشاط مسجّل بعد.", reply_markup=_back_btn())
-            return
-
-        lines = [f"📈 نشاط المستخدمين (Top 20)\n{SEP}"]
-        for rank, (uid, total_reqs) in enumerate(activity, 1):
-            uname, fname = users_info.get(uid, (None, None))
-            name = f"@{uname}" if uname else (fname or str(uid))
-            lines.append(f"{rank}. {name}  —  {total_reqs} طلب")
-
-        await query.edit_message_text("\n".join(lines), reply_markup=_back_btn())
-
-    elif data == "admin_bin_log":
-        rows = get_recent_bin_lookups(15)
+    # ── قائمة المستخدمين (paginated) ─────────────────
+    elif data.startswith("admin_ul_"):
+        page = int(data.split("_")[-1])
+        rows, total = get_users_page(page, PER_PAGE)
+        total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
 
         if not rows:
-            await query.edit_message_text("لا يوجد سجل BIN بعد.", reply_markup=_back_btn())
+            await query.edit_message_text("لا يوجد مستخدمون بعد.", reply_markup=_back_btn())
             return
 
-        lines = [f"💳 آخر 15 بحث BIN\n{SEP}"]
-        for uid, detail, ts, scheme, typ, bank, country, emoji in rows:
-            bin_num   = (detail or "")[:6]
-            scheme_s  = (scheme or "N/A").upper()
-            typ_s     = (typ or "N/A").upper()
-            bank_s    = (bank or "N/A").upper()
-            country_s = (country or "N/A").upper()
-            flag      = emoji or "🏳"
-            time_s    = str(ts)[:16] if ts else "—"
-            lines.append(
-                f"• BIN: {bin_num}  │  {flag} {country_s}\n"
-                f"  {scheme_s} - {typ_s} - {bank_s}\n"
-                f"  👤 {uid}  │  🕐 {time_s}"
-            )
+        header = (
+            f"{S}\n"
+            f"   👥  المستخدمون  —  صفحة {page + 1}/{total_pages}\n"
+            f"{S}\n"
+            f"إجمالي: <b>{total:,}</b> مستخدم\n"
+        )
 
-        await query.edit_message_text("\n".join(lines), reply_markup=_back_btn())
+        btns = []
+        for uid, uname, fname, is_banned, is_prem, reqs, gens, joined in rows:
+            name   = f"@{uname}" if uname else (fname or str(uid))
+            badge  = "🚫" if is_banned else ("💎" if is_prem else "")
+            label  = f"{badge} {name}  ({uid})" if badge else f"{name}  ({uid})"
+            btns.append([InlineKeyboardButton(label, callback_data=f"admin_uc_{uid}")])
 
+        nav = []
+        if page > 0:
+            nav.append(InlineKeyboardButton("◀️ السابق", callback_data=f"admin_ul_{page - 1}"))
+        nav.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="admin_back"))
+        if (page + 1) < total_pages:
+            nav.append(InlineKeyboardButton("التالي ▶️", callback_data=f"admin_ul_{page + 1}"))
+
+        btns.append(nav)
+        btns.append([InlineKeyboardButton("🏠 الرئيسية", callback_data="admin_back")])
+
+        await query.edit_message_text(
+            header, reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML"
+        )
+
+    # ── بطاقة مستخدم ──────────────────────────────────
+    elif data.startswith("admin_uc_"):
+        uid  = int(data.split("_")[-1])
+        info = get_user_info(uid)
+        if not info:
+            await query.answer("❌ المستخدم غير موجود", show_alert=True)
+            return
+        card = _build_user_card(info)
+        kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+        await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── حظر من البطاقة ────────────────────────────────
+    elif data.startswith("admin_ban_"):
+        uid = int(data.split("_")[-1])
+        if set_ban_status(uid, True):
+            logger.info(f"Admin banned {uid} via panel")
+            await query.answer("🚫 تم الحظر", show_alert=True)
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── رفع الحظر من البطاقة ──────────────────────────
+    elif data.startswith("admin_ub_"):
+        uid = int(data.split("_")[-1])
+        if set_ban_status(uid, False):
+            logger.info(f"Admin unbanned {uid} via panel")
+            await query.answer("✅ تم رفع الحظر", show_alert=True)
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── منح Premium من البطاقة ────────────────────────
+    elif data.startswith("admin_gp_"):
+        uid = int(data.split("_")[-1])
+        if set_premium(uid, True):
+            logger.info(f"Admin granted premium to {uid}")
+            await query.answer("💎 تم منح Premium", show_alert=True)
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── إلغاء Premium من البطاقة ──────────────────────
+    elif data.startswith("admin_rp_"):
+        uid = int(data.split("_")[-1])
+        if set_premium(uid, False):
+            logger.info(f"Admin revoked premium from {uid}")
+            await query.answer("🔓 تم إلغاء Premium", show_alert=True)
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── طلب تأكيد الحذف ───────────────────────────────
+    elif data.startswith("admin_del_"):
+        uid = int(data.split("_")[-1])
+        info = get_user_info(uid)
+        name = ""
+        if info:
+            name = f"@{info['username']}" if info.get("username") else (info.get("first_name") or str(uid))
+        msg = (
+            f"⚠️ <b>تأكيد الحذف</b>\n\n"
+            f"هل تريد حذف المستخدم <b>{name}</b> (<code>{uid}</code>) نهائياً من قاعدة البيانات؟\n\n"
+            f"<i>هذا الإجراء لا يمكن التراجع عنه.</i>"
+        )
+        await query.edit_message_text(msg, reply_markup=_confirm_delete_keyboard(uid), parse_mode="HTML")
+
+    # ── تأكيد الحذف ───────────────────────────────────
+    elif data.startswith("admin_dc_"):
+        uid = int(data.split("_")[-1])
+        ok  = delete_user(uid)
+        if ok:
+            logger.info(f"Admin deleted user {uid}")
+            await query.answer("🗑 تم الحذف نهائياً", show_alert=True)
+            msg = f"✅ تم حذف المستخدم <code>{uid}</code> من قاعدة البيانات."
+            await query.edit_message_text(msg, reply_markup=_back_btn(), parse_mode="HTML")
+        else:
+            await query.answer("❌ فشل الحذف أو المستخدم غير موجود", show_alert=True)
+
+    # ── قائمة المحظورين ───────────────────────────────
     elif data == "admin_ban_list":
         banned_list = get_banned_users()
-        if banned_list:
-            lines = ["🚫 المستخدمون المحظورون:\n"]
-            btns = []
-            for uid, uname, fname in banned_list:
-                name = f"@{uname}" if uname else fname or str(uid)
-                lines.append(f"• {name}  ({uid})")
-                btns.append([InlineKeyboardButton(f"رفع الحظر عن {name}", callback_data=f"unban_{uid}")])
-            btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
-            await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(btns))
-        else:
+        if not banned_list:
             await query.edit_message_text("لا يوجد مستخدمون محظورون.", reply_markup=_back_btn())
+            return
+        lines = [f"{S}\n   🚫  المحظورون — {len(banned_list)} مستخدم\n{S}\n"]
+        btns  = []
+        for uid, uname, fname in banned_list[:20]:
+            name = f"@{uname}" if uname else (fname or str(uid))
+            lines.append(f"• {name}  <code>{uid}</code>")
+            btns.append([InlineKeyboardButton(f"👤 {name}", callback_data=f"admin_uc_{uid}")])
+        btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
+        await query.edit_message_text(
+            "\n".join(lines), reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML"
+        )
 
-    elif data == "admin_premium_list":
+    # ── قائمة Premium ──────────────────────────────────
+    elif data == "admin_pl":
         from bot.database.connection import execute_query
         rows = execute_query(
             """SELECT user_id, username, first_name, premium_until
-               FROM bot_users WHERE is_premium = TRUE ORDER BY user_id""",
+               FROM bot_users WHERE is_premium = TRUE ORDER BY joined_at DESC""",
             fetch=True,
         ) or []
-        if rows:
-            lines = [f"💎 المشتركون Premium — {len(rows)} عضو\n{SEP}"]
-            btns = []
-            for uid, uname, fname, until in rows:
-                name = f"@{uname}" if uname else fname or str(uid)
-                exp = str(until)[:10] if until else "دائم"
-                lines.append(f"• {name} ({uid})\n  📅 حتى: {exp}")
-                btns.append([InlineKeyboardButton(f"❌ إلغاء Premium: {name}", callback_data=f"unpremium_{uid}")])
-            btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
-            await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(btns))
-        else:
-            await query.edit_message_text("لا يوجد مشتركون Premium حتى الآن.", reply_markup=_back_btn())
+        if not rows:
+            await query.edit_message_text("لا يوجد مشتركون Premium.", reply_markup=_back_btn())
+            return
+        lines = [f"{S}\n   💎  مشتركو Premium — {len(rows)} عضو\n{S}\n"]
+        btns  = []
+        for uid, uname, fname, until in rows[:20]:
+            name = f"@{uname}" if uname else (fname or str(uid))
+            exp  = str(until)[:10] if until else "دائم"
+            lines.append(f"• {name}  <code>{uid}</code>  📅 {exp}")
+            btns.append([InlineKeyboardButton(f"👤 {name}", callback_data=f"admin_uc_{uid}")])
+        btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
+        await query.edit_message_text(
+            "\n".join(lines), reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML"
+        )
 
-    elif data.startswith("unpremium_"):
-        target_id = int(data.split("_")[1])
-        if set_premium(target_id, False):
-            await query.answer(f"🔓 تم إلغاء Premium عن {target_id}", show_alert=True)
-        await query.edit_message_text("✅ تم التحديث.", reply_markup=_back_btn())
+    # ── سجل BIN ───────────────────────────────────────
+    elif data == "admin_bin_log":
+        rows = get_recent_bin_lookups(12)
+        if not rows:
+            await query.edit_message_text("لا يوجد سجل BIN بعد.", reply_markup=_back_btn())
+            return
+        lines = [f"{S}\n   💳  آخر 12 بحث BIN\n{S}\n"]
+        for uid, detail, ts, scheme, typ, bank, country, emoji in rows:
+            b   = (detail or "")[:6]
+            sch = (scheme or "?").upper()
+            ctr = (country or "?").upper()
+            fl  = emoji or "🏳"
+            tm  = str(ts)[:16] if ts else "—"
+            lines.append(f"<code>{b}</code>  {fl} {ctr}  {sch}\n👤 {uid}  🕐 {tm}")
+        await query.edit_message_text(
+            "\n".join(lines), reply_markup=_back_btn(), parse_mode="HTML"
+        )
 
+    # ── معلومات البث ──────────────────────────────────
+    elif data == "admin_bc_info":
+        await query.edit_message_text(
+            "📢 <b>بث رسالة</b>\n\nأرسل الأمر:\n<code>/broadcast الرسالة هنا</code>",
+            reply_markup=_back_btn(),
+            parse_mode="HTML",
+        )
+
+    # ── نسخة احتياطية ─────────────────────────────────
     elif data == "admin_backup_file":
         if USERS_JSON.exists():
             await query.message.reply_document(
@@ -431,51 +557,11 @@ async def admin_callback(query, user):
                 filename="users_backup.json",
                 caption="💾 نسخة احتياطية للمستخدمين",
             )
+            await query.answer("✅ تم الإرسال")
         else:
-            await query.answer("❌ لا توجد بيانات")
+            await query.answer("❌ لا توجد بيانات", show_alert=True)
 
-    elif data.startswith("ban_") and not data.startswith("ban_list"):
-        target_id = int(data.split("_")[1])
-        if set_ban_status(target_id, True):
-            logger.info(f"Admin banned {target_id} via panel")
-            await query.answer(f"🚫 تم حظر {target_id}", show_alert=True)
-        recent = get_recent_users(10)
-        if recent:
-            lines = ["👥 آخر 10 مستخدمين:\n"]
-            btns = []
-            for uid, uname, fname, joined in recent:
-                name = f"@{uname}" if uname else fname or str(uid)
-                date_str = joined.strftime("%m/%d %H:%M") if joined else "—"
-                lines.append(f"• {name} ({uid}) - {date_str}")
-                if uid != ADMIN_ID:
-                    btns.append([InlineKeyboardButton(f"🚫 حظر {name}", callback_data=f"ban_{uid}")])
-            btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
-            await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(btns))
-
-    elif data.startswith("unban_"):
-        target_id = int(data.split("_")[1])
-        if set_ban_status(target_id, False):
-            logger.info(f"Admin unbanned {target_id} via panel")
-            await query.answer(f"✅ رُفع الحظر عن {target_id}", show_alert=True)
-        banned_list = get_banned_users()
-        if banned_list:
-            lines = ["🚫 المستخدمون المحظورون:\n"]
-            btns = []
-            for uid, uname, fname in banned_list:
-                name = f"@{uname}" if uname else fname or str(uid)
-                lines.append(f"• {name}  ({uid})")
-                btns.append([InlineKeyboardButton(f"رفع الحظر عن {name}", callback_data=f"unban_{uid}")])
-            btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
-            await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(btns))
-        else:
-            await query.edit_message_text("لا يوجد مستخدمون محظورون.", reply_markup=_back_btn())
-
-    elif data == "admin_broadcast":
-        await query.edit_message_text(
-            "أرسل: /broadcast <الرسالة>",
-            reply_markup=_back_btn(),
-        )
-
+    # ── قاعدة BIN ─────────────────────────────────────
     elif data == "admin_bin_db":
         await _show_bin_db(query)
 
@@ -485,29 +571,42 @@ async def admin_callback(query, user):
             await query.answer("❌ المُحدِّث غير مفعّل", show_alert=True)
             return
         await query.answer("⏳ جاري التحديث..." if not force else "⚡ تحديث إجباري...")
-        await query.edit_message_text(
-            "⏳ جاري تحديث قاعدة BIN، انتظر قليلاً...",
-            reply_markup=_back_btn(),
-        )
+        await query.edit_message_text("⏳ جاري تحديث قاعدة BIN...", reply_markup=_back_btn("admin_bin_db"))
         try:
             stats = await _bin_scheduler.run_now(force=force)
             msg = (
-                f"✅ <b>اكتمل تحديث BIN</b>\n"
-                f"{'─' * 20}\n\n"
-                f"🆕 جديد:       <b>{stats['new']}</b>\n"
-                f"♻️ محدّث:      <b>{stats['updated']}</b>\n"
-                f"❌ فشل:        <b>{stats['failed']}</b>\n"
-                f"📦 إجمالي DB:  <b>{stats['total_db']}</b>\n"
-                f"⏱ الوقت:      <b>{stats['duration_s']}s</b>"
+                f"✅ <b>اكتمل تحديث BIN</b>\n{S2}\n\n"
+                f"🆕 جديد:      <b>{stats['new']}</b>\n"
+                f"♻️ محدّث:     <b>{stats['updated']}</b>\n"
+                f"❌ فشل:       <b>{stats['failed']}</b>\n"
+                f"📦 إجمالي DB: <b>{stats['total_db']}</b>\n"
+                f"⏱ الوقت:     <b>{stats['duration_s']}s</b>"
             )
-            kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 رجوع", callback_data="admin_bin_db")],
-            ])
-            await query.edit_message_text(msg, reply_markup=kb, parse_mode="HTML")
+            await query.edit_message_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="admin_bin_db")]]),
+                parse_mode="HTML",
+            )
         except Exception as e:
             logger.error(f"admin_bin_update error: {e}")
-            await query.edit_message_text(f"❌ خطأ: {e}", reply_markup=_back_btn())
+            await query.edit_message_text(f"❌ خطأ: {e}", reply_markup=_back_btn("admin_bin_db"))
 
+    # ── Compat: old unban_ callbacks ──────────────────
+    elif data.startswith("unban_"):
+        uid = int(data.split("_")[1])
+        if set_ban_status(uid, False):
+            logger.info(f"Admin unbanned {uid} via panel (compat)")
+            await query.answer("✅ رُفع الحظر", show_alert=True)
+        await query.edit_message_text("✅ تم رفع الحظر.", reply_markup=_back_btn())
+
+    elif data.startswith("unpremium_"):
+        uid = int(data.split("_")[1])
+        if set_premium(uid, False):
+            await query.answer("🔓 تم إلغاء Premium", show_alert=True)
+        await query.edit_message_text("✅ تم إلغاء Premium.", reply_markup=_back_btn())
+
+
+# ─── BIN DB view ─────────────────────────────────────────────────────────────
 
 async def _show_bin_db(query):
     total = get_bin_db_size()
@@ -515,56 +614,58 @@ async def _show_bin_db(query):
 
     status_txt = ""
     if _bin_scheduler:
-        st = _bin_scheduler.status()
+        st  = _bin_scheduler.status()
         nxt = st.get("next_run_in")
         nxt_str = f"{nxt // 3600}h {(nxt % 3600) // 60}m" if nxt else "قريباً"
         ls  = st.get("last_stats") or {}
         status_txt = (
-            f"\n⏱ التحديث القادم: {nxt_str}\n"
-            f"📦 آخر تحديث: +{ls.get('new', '—')} جديد, {ls.get('updated', '—')} محدّث"
+            f"\n⏱ التحديث القادم:  {nxt_str}\n"
+            f"📦 آخر تحديث:  +{ls.get('new', '—')} جديد, {ls.get('updated', '—')} محدّث"
         )
 
-    top_lines = "\n".join(f"   {i}. <code>{b}</code>  —  {c}x"
-                          for i, (b, c) in enumerate(top, 1)) if top else "   لا توجد بيانات"
+    top_lines = "\n".join(
+        f"   {i}. <code>{b}</code>  —  {c}x"
+        for i, (b, c) in enumerate(top, 1)
+    ) if top else "   لا توجد بيانات"
 
     msg = (
-        f"🗄  <b>قاعدة بيانات BIN</b>\n"
-        f"{'─' * 22}\n\n"
-        f"📊 إجمالي BINs في DB: <b>{total}</b>"
+        f"{S}\n"
+        f"   🗄  قاعدة بيانات BIN\n"
+        f"{S}\n\n"
+        f"📊 إجمالي BINs:  <b>{total:,}</b>"
         f"{status_txt}\n\n"
-        f"🏆 <b>أكثر BIN طلباً:</b>\n{top_lines}"
+        f"🏆 <b>أكثر BIN طلباً:</b>\n{top_lines}\n"
+        f"{S}"
     )
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 تحديث الآن",      callback_data="admin_bin_update")],
-        [InlineKeyboardButton("⚡ تحديث إجباري",    callback_data="admin_bin_force")],
-        [InlineKeyboardButton("🔙 رجوع",            callback_data="admin_back")],
+        [InlineKeyboardButton("🔄 تحديث الآن",    callback_data="admin_bin_update")],
+        [InlineKeyboardButton("⚡ تحديث إجباري",  callback_data="admin_bin_force")],
+        [InlineKeyboardButton("🔙 رجوع",          callback_data="admin_back")],
     ])
     await query.edit_message_text(msg, reply_markup=kb, parse_mode="HTML")
 
 
+# ─── updatebins & randombin commands ─────────────────────────────────────────
+
 async def updatebins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin command: /updatebins [force] — trigger BIN database update."""
     if not update.message or not is_admin(update.message.from_user.id):
         return
     if not _bin_scheduler:
         await update.message.reply_text("❌ المُحدِّث غير مفعّل.")
         return
-
     force = bool(context.args and context.args[0].lower() == "force")
     wait  = await update.message.reply_text(
-        "⏳ جاري تحديث قاعدة BIN...\n"
-        f"{'(تحديث إجباري)' if force else ''}"
+        f"⏳ جاري تحديث قاعدة BIN...{'  (إجباري)' if force else ''}"
     )
     try:
         stats = await _bin_scheduler.run_now(force=force)
         msg = (
-            f"✅ <b>اكتمل تحديث BIN</b>\n"
-            f"{'─' * 20}\n\n"
-            f"🆕 جديد:       <b>{stats['new']}</b>\n"
-            f"♻️ محدّث:      <b>{stats['updated']}</b>\n"
-            f"❌ فشل:        <b>{stats['failed']}</b>\n"
-            f"📦 إجمالي DB:  <b>{stats['total_db']}</b>\n"
-            f"⏱ الوقت:      <b>{stats['duration_s']}s</b>"
+            f"✅ <b>اكتمل تحديث BIN</b>\n{S2}\n\n"
+            f"🆕 جديد:      <b>{stats['new']}</b>\n"
+            f"♻️ محدّث:     <b>{stats['updated']}</b>\n"
+            f"❌ فشل:       <b>{stats['failed']}</b>\n"
+            f"📦 إجمالي DB: <b>{stats['total_db']}</b>\n"
+            f"⏱ الوقت:     <b>{stats['duration_s']}s</b>"
         )
         await wait.edit_text(msg, parse_mode="HTML")
     except Exception as e:
@@ -573,46 +674,30 @@ async def updatebins_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def randombin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin command: /randombin [brand] [type] [country] — get a random BIN."""
     if not update.message or not is_admin(update.message.from_user.id):
         return
     if not _bin_scheduler:
         await update.message.reply_text("❌ المُحدِّث غير مفعّل.")
         return
-
     brand = context.args[0].upper() if len(context.args) > 0 else None
     type_ = context.args[1].upper() if len(context.args) > 1 else None
     cc    = context.args[2].upper() if len(context.args) > 2 else None
-
-    row = _bin_scheduler.updater.get_random_bin(brand=brand, type_=type_, country_code=cc)
+    row   = _bin_scheduler.updater.get_random_bin(brand=brand, type_=type_, country_code=cc)
     if not row:
         await update.message.reply_text(
             "❌ لم يُعثر على BIN بهذه الفلاتر.\n"
-            "استخدام: /randombin [VISA/MC/AMEX] [CREDIT/DEBIT] [US/GB/SA]"
+            "الاستخدام: /randombin [VISA/MC/AMEX] [CREDIT/DEBIT] [US/GB/SA]"
         )
         return
-
-    bin_num   = row.get("bin", "—")
-    scheme    = row.get("scheme", "N/A")
-    typ       = row.get("type", "N/A")
-    level     = row.get("level", "N/A")
-    bank      = row.get("bank", "N/A")
-    country   = row.get("country", "N/A")
-    ccode     = row.get("country_code", "")
-    emoji     = row.get("emoji") or ""
-    currency  = row.get("currency", "N/A")
-    source    = row.get("source", "—")
-
     msg = (
-        f"🎲 <b>Random BIN</b>\n"
-        f"{'─' * 20}\n\n"
-        f"🔢 BIN:       <code>{bin_num}</code>\n"
-        f"🌐 Network:   <b>{scheme}</b>\n"
-        f"📋 Type:      <b>{typ}</b>\n"
-        f"⭐ Level:     <b>{level}</b>\n"
-        f"🏦 Bank:      {bank}\n"
-        f"🌍 Country:   {country} {emoji}\n"
-        f"💱 Currency:  {currency}\n"
-        f"📡 Source:    {source}"
+        f"🎲 <b>Random BIN</b>\n{S2}\n\n"
+        f"🔢 BIN:     <code>{row.get('bin', '—')}</code>\n"
+        f"🌐 Network: <b>{row.get('scheme', 'N/A')}</b>\n"
+        f"📋 Type:    <b>{row.get('type', 'N/A')}</b>\n"
+        f"⭐ Level:   <b>{row.get('level', 'N/A')}</b>\n"
+        f"🏦 Bank:    {row.get('bank', 'N/A')}\n"
+        f"🌍 Country: {row.get('country', 'N/A')} {row.get('emoji', '')}\n"
+        f"💱 Currency:{row.get('currency', 'N/A')}\n"
+        f"📡 Source:  {row.get('source', '—')}"
     )
     await update.message.reply_text(msg, parse_mode="HTML")

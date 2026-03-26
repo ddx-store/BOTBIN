@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.database.queries import (
     is_user_banned, increment_gen_stat, increment_request_count, increment_request_stat,
-    is_premium_user, increment_gen_count,
+    increment_gen_count,
 )
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
@@ -181,23 +181,9 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         return
 
-    premium = is_premium_user(user.id)
-    free_limit = 10
-    max_allowed = MAX_CARD_COUNT if premium else free_limit
-    capped = False
-    if count > max_allowed:
-        count = max_allowed
-        capped = True
-
     increment_request_count(user.id)
     increment_gen_count(user.id)
     logger.info(f"User {user.id} /gen BIN={raw_digits[:6]} count={count} cvv={fixed_cvv}")
-
-    cap_note = (
-        "⚠️ حسابك المجاني محدود بـ 10 بطاقات.\n"
-        "💎 تواصل مع الأدمن للترقية إلى Premium (200 بطاقة)."
-        if capped and not premium else None
-    )
 
     if count > LARGE_GEN_THRESHOLD:
         wait_msg = await update.message.reply_text(MSG_QUEUED)
@@ -207,8 +193,6 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg, markup = await format_gen_response(user, bin_input, count, month, year, fixed_cvv)
                 await wait_msg.delete()
                 await update.message.reply_text(msg, reply_markup=markup, parse_mode="HTML")
-                if cap_note:
-                    await update.message.reply_text(cap_note)
             except Exception as e:
                 logger.error(f"Queue gen error: {e}")
                 await wait_msg.edit_text(MSG_ERROR)
@@ -222,8 +206,6 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg, markup = await format_gen_response(user, bin_input, count, month, year, fixed_cvv)
             await wait_msg.delete()
             await update.message.reply_text(msg, reply_markup=markup, parse_mode="HTML")
-            if cap_note:
-                await update.message.reply_text(cap_note)
         except Exception as e:
             logger.error(f"Gen error: {e}")
             await wait_msg.edit_text(MSG_ERROR)
