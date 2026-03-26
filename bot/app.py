@@ -1,5 +1,7 @@
 import os
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+import traceback
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from bot.config.settings import BOT_TOKEN
 from bot.database.models import init_db
 from bot.handlers.start import start, help_command, setup_commands
@@ -90,6 +92,17 @@ def create_app():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.Regex(r"^/gen\d+"), gen_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))
+
+    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+        logger.error(f"Exception while handling update: {context.error}")
+        logger.error(traceback.format_exception(type(context.error), context.error, context.error.__traceback__))
+        if isinstance(update, Update) and update.effective_message:
+            try:
+                await update.effective_message.reply_text("⚠️ حدث خطأ أثناء معالجة طلبك. حاول مرة أخرى.")
+            except Exception:
+                pass
+
+    app.add_error_handler(error_handler)
 
     return app
 
