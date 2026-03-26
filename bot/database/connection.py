@@ -1,5 +1,8 @@
 import psycopg2
 from bot.config.settings import DATABASE_URL
+from bot.utils.logger import get_logger
+
+logger = get_logger("db")
 
 
 def get_connection():
@@ -27,7 +30,7 @@ def execute_query(query, params=None, fetch=False, fetch_one=False):
         cur.close()
         return result
     except Exception as e:
-        print(f"DB Error: {e}")
+        logger.error(f"DB Error: {e}")
         if conn:
             try:
                 conn.rollback()

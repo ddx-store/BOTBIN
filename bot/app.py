@@ -21,7 +21,7 @@ from bot.utils.logger import get_logger
 
 logger = get_logger("app")
 
-WEBHOOK_PORT = 8080
+WEBHOOK_PORT = int(os.getenv("PORT", "8080"))
 
 _scheduler: BinUpdateScheduler | None = None
 
@@ -99,11 +99,19 @@ def run():
     if not app:
         return
 
-    dev_domain = os.getenv("REPLIT_DEV_DOMAIN")
+    dev_domain     = os.getenv("REPLIT_DEV_DOMAIN")
+    railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
+    custom_webhook = os.getenv("WEBHOOK_URL")
 
-    if dev_domain:
-        webhook_url = f"https://{dev_domain}/webhook"
-        logger.info(f"Starting webhook mode → {webhook_url}")
+    webhook_domain = custom_webhook or (
+        f"https://{dev_domain}" if dev_domain else (
+            f"https://{railway_domain}" if railway_domain else None
+        )
+    )
+
+    if webhook_domain:
+        webhook_url = webhook_domain.rstrip("/") + "/webhook"
+        logger.info(f"Starting webhook mode → {webhook_url} (port {WEBHOOK_PORT})")
         app.run_webhook(
             listen="0.0.0.0",
             port=WEBHOOK_PORT,
@@ -113,5 +121,5 @@ def run():
             allowed_updates=["message", "callback_query"],
         )
     else:
-        logger.info("Starting polling mode...")
+        logger.info("Starting polling mode (no webhook domain detected)...")
         app.run_polling(drop_pending_updates=True)

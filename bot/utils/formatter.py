@@ -4,11 +4,17 @@ All Telegram responses use HTML parse mode.
 """
 
 import re
+import html as _html
 
 SEP = "\u2500" * 9          # ─────────  (short separator)
 SEP_LONG = "\u2500" * 18   # longer separator for other commands
 FOOT = "\u00a9 DDXSTORE \u2022 @ddx22"
 ARROW = " \u21a0 "          # ↠
+
+
+def _e(s) -> str:
+    """HTML-escape a raw value from external sources or user input."""
+    return _html.escape(str(s) if s is not None else "")
 
 
 def _lv(label: str, value: str, emoji: str = "") -> str:
@@ -17,7 +23,7 @@ def _lv(label: str, value: str, emoji: str = "") -> str:
 
 
 def _trim(text: str, n: int = 20) -> str:
-    t = (text or "N/A").strip()
+    t = _e((text or "N/A").strip())
     return (t[:n] + "\u2026") if len(t) > n else t
 
 
@@ -26,11 +32,11 @@ def _country_str(info: dict, upper: bool = False) -> str:
     if upper:
         c = c.upper()
     e = info.get("emoji") or ""
-    return (c + " " + e).strip()
+    return (_e(c) + " " + e).strip()
 
 
 def _code(val: str) -> str:
-    return "<code>" + val + "</code>"
+    return "<code>" + _e(val) + "</code>"
 
 
 def _build_format(bin_input: str, fixed_month: str = None,
@@ -55,14 +61,14 @@ def gen_msg(user, prefix: str, info: dict, cards: list,
             fixed_year: str = None, fixed_cvv: str = None,
             checked: int = None) -> str:
 
-    uname = ("@" + user.username) if user.username else (user.first_name or str(user.id))
+    uname = _e(("@" + user.username) if user.username else (user.first_name or str(user.id)))
 
-    brand = (info.get("scheme") or "N/A").upper()
-    typ   = (info.get("type") or "N/A").upper()
-    lvl   = (info.get("level") or "").upper()
+    brand = _e((info.get("scheme") or "N/A").upper())
+    typ   = _e((info.get("type") or "N/A").upper())
+    lvl   = _e((info.get("level") or "").upper())
     info_line = brand + " - " + typ + (" - " + lvl if lvl and lvl != "N/A" else "")
 
-    bank    = (info.get("bank") or "N/A").upper()
+    bank    = _e((info.get("bank") or "N/A").upper())
     country = _country_str(info, upper=True)
     fmt_str = _build_format(bin_input or prefix, fixed_month, fixed_year, fixed_cvv)
 
@@ -139,9 +145,9 @@ def _opt(label: str, val, emoji: str, trim: int = 30) -> str | None:
 
 
 def bin_lookup_msg(bin_num: str, info: dict) -> str:
-    scheme  = (info.get("scheme") or "N/A").upper()
-    typ     = (info.get("type")   or "N/A").upper()
-    level   = (info.get("level")  or "N/A").upper()
+    scheme  = _e((info.get("scheme") or "N/A").upper())
+    typ     = _e((info.get("type")   or "N/A").upper())
+    level   = _e((info.get("level")  or "N/A").upper())
     prepaid = ("Yes ✅" if info.get("prepaid") is True
                else ("No 🚫" if info.get("prepaid") is False else "\u2014"))
 
@@ -184,7 +190,7 @@ def bin_lookup_msg(bin_num: str, info: dict) -> str:
     ]
 
     if currency and currency not in ("N/A", ""):
-        parts.append(_lv("Currency", currency, "\U0001f4b1"))
+        parts.append(_lv("Currency", _e(currency), "\U0001f4b1"))
 
     if has_bank_extras:
         parts.append("")
@@ -193,8 +199,9 @@ def bin_lookup_msg(bin_num: str, info: dict) -> str:
         if bank_ph := _opt("Phone", bank_phone, "\U0001f4de", 20):
             parts.append(bank_ph)
         if bank_url and bank_url not in ("N/A", ""):
-            url = bank_url if bank_url.startswith("http") else "https://" + bank_url
-            parts.append(_lv("Website", f'<a href="{url}">{_trim(bank_url, 28)}</a>', "\U0001f517"))
+            raw_url = bank_url if bank_url.startswith("http") else "https://" + bank_url
+            safe_href = _html.escape(raw_url, quote=True)
+            parts.append(_lv("Website", f'<a href="{safe_href}">{_trim(bank_url, 28)}</a>', "\U0001f517"))
 
     parts += [
         "",
@@ -247,9 +254,9 @@ def chk_msg(card_number: str, valid: bool, info: dict,
         parts.append(_lv("Validity", expiry_note, "\u23f3"))
 
     parts += [
-        _lv("Brand",   info.get("scheme") or "\u2014", "\U0001f3f7"),
-        _lv("Type",    info.get("type") or "\u2014", "\U0001f4cb"),
-        _lv("Level",   info.get("level") or "\u2014", "\u2b50"),
+        _lv("Brand",   _e(info.get("scheme") or "\u2014"), "\U0001f3f7"),
+        _lv("Type",    _e(info.get("type") or "\u2014"), "\U0001f4cb"),
+        _lv("Level",   _e(info.get("level") or "\u2014"), "\u2b50"),
         _lv("Bank",    _trim(info.get("bank") or "\u2014", 28), "\U0001f3e6"),
         _lv("Country", _country_str(info), "\U0001f30d"),
         SEP_LONG,
@@ -268,18 +275,18 @@ def fake_msg(fake: dict) -> str:
         SEP_LONG,
         "    \U0001f464  <b>DDX FAKE IDENTITY</b>",
         SEP_LONG,
-        _lv("Name", fake.get("name") or "\u2014", "\U0001f9e5"),
-        _lv("Email", _code(fake.get("email") or "\u2014"), "\U0001f4e7"),
-        _lv("Pass", _code(fake.get("password") or "\u2014"), "\U0001f511"),
-        _lv("DOB", fake.get("dob") or "\u2014", "\U0001f382"),
-        _lv("SSN", _code(fake.get("ssn") or "\u2014"), "\U0001f4c4"),
-        _lv("Phone", fake.get("phone") or "\u2014", "\u260e"),
+        _lv("Name",    _e(fake.get("name") or "\u2014"), "\U0001f9e5"),
+        _lv("Email",   _code(fake.get("email") or "\u2014"), "\U0001f4e7"),
+        _lv("Pass",    _code(fake.get("password") or "\u2014"), "\U0001f511"),
+        _lv("DOB",     _e(fake.get("dob") or "\u2014"), "\U0001f382"),
+        _lv("SSN",     _code(fake.get("ssn") or "\u2014"), "\U0001f4c4"),
+        _lv("Phone",   _e(fake.get("phone") or "\u2014"), "\u260e"),
         SEP_LONG,
-        _lv("Country", fake.get("country") or "\u2014", "\U0001f30d"),
-        _lv("City", fake.get("city") or "\u2014", "\U0001f3d9"),
-        _lv("Street", fake.get("street") or "\u2014", "\U0001f6e3"),
-        _lv("State", fake.get("state") or "\u2014", "\U0001f4cd"),
-        _lv("ZIP", fake.get("zip") or "\u2014", "\U0001f4ee"),
+        _lv("Country", _e(fake.get("country") or "\u2014"), "\U0001f30d"),
+        _lv("City",    _e(fake.get("city") or "\u2014"), "\U0001f3d9"),
+        _lv("Street",  _e(fake.get("street") or "\u2014"), "\U0001f6e3"),
+        _lv("State",   _e(fake.get("state") or "\u2014"), "\U0001f4cd"),
+        _lv("ZIP",     _e(fake.get("zip") or "\u2014"), "\U0001f4ee"),
         SEP_LONG,
         _lv("IP", _code(fake.get("ip") or "\u2014"), "\U0001f310"),
         _lv("UA", _code(ua), "\U0001f4bb"),

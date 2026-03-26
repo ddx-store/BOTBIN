@@ -94,10 +94,10 @@ class BinListUpdater:
 
     def __init__(
         self,
-        concurrency: int = 5,
-        delay_between_batches: float = 0.6,
-        max_retries: int = 3,
-        expand_radius: int = 8,
+        concurrency: int = 10,
+        delay_between_batches: float = 0.5,
+        max_retries: int = 2,
+        expand_radius: int = 3,
     ):
         self.concurrency           = concurrency
         self.delay_between_batches = delay_between_batches

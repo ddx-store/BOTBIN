@@ -11,9 +11,28 @@ VIOLATION_WINDOW  = 600
 MAX_VIOLATIONS    = 5
 SAME_BIN_MAX      = 25
 SAME_BIN_WINDOW   = 300
+_CLEANUP_EVERY    = 1800
+_last_cleanup     = 0.0
+
+
+def _cleanup():
+    global _last_cleanup
+    now = time.time()
+    if now - _last_cleanup < _CLEANUP_EVERY:
+        return
+    _last_cleanup = now
+    stale_v = [uid for uid, ts in list(_violations.items())
+               if not ts or now - max(ts) > VIOLATION_WINDOW]
+    for uid in stale_v:
+        del _violations[uid]
+    stale_b = [k for k, v in list(_bin_usage.items())
+               if now - v.get("first", 0) > SAME_BIN_WINDOW]
+    for k in stale_b:
+        del _bin_usage[k]
 
 
 def record_violation(user_id: int, reason: str) -> bool:
+    _cleanup()
     now = time.time()
     _violations[user_id] = [t for t in _violations[user_id] if now - t < VIOLATION_WINDOW]
     _violations[user_id].append(now)
@@ -29,6 +48,7 @@ def record_violation(user_id: int, reason: str) -> bool:
 
 
 def check_bin_abuse(user_id: int, bin_prefix: str) -> bool:
+    _cleanup()
     now  = time.time()
     key  = f"{user_id}:{bin_prefix[:6]}"
     entry = _bin_usage.get(key)

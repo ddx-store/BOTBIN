@@ -5,9 +5,24 @@ _user_timestamps: dict = {}
 
 BURST_WINDOW = 5
 BURST_MAX = 5
+_CLEANUP_EVERY = 3600
+_last_cleanup = 0.0
+
+
+def _cleanup_old_entries():
+    global _last_cleanup
+    now = time.time()
+    if now - _last_cleanup < _CLEANUP_EVERY:
+        return
+    _last_cleanup = now
+    cutoff = now - RATE_LIMIT_WINDOW
+    stale = [uid for uid, ts in _user_timestamps.items() if not ts or max(ts) < cutoff]
+    for uid in stale:
+        del _user_timestamps[uid]
 
 
 def check_rate_limit(user_id: int) -> bool:
+    _cleanup_old_entries()
     now = time.time()
     if user_id not in _user_timestamps:
         _user_timestamps[user_id] = []
