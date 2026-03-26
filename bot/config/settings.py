@@ -17,8 +17,9 @@ QUEUE_THRESHOLD = 50
 
 DEFAULT_CARD_LENGTH = 16
 
-BIN_LOOKUP_URL = "https://lookup.binlist.net"
-BIN_LOOKUP_TIMEOUT = 5
+BIN_LOOKUP_URL     = "https://lookup.binlist.net"
+BIN_LOOKUP_URL2    = "https://data.handyapi.com/bin"
+BIN_LOOKUP_TIMEOUT = 6
 
-COUNTRIES_API_URL = "https://restcountries.com/v3.1/all"
-COUNTRIES_CACHE_TTL = 86400
+COUNTRIES_API_URL    = "https://restcountries.com/v3.1/all"
+COUNTRIES_CACHE_TTL  = 86400

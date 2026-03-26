@@ -99,20 +99,105 @@ def auto_gen_msg(user, prefix: str, info: dict, cards: list) -> str:
 
 # ─── BIN Lookup ──────────────────────────────────────────────────────────────
 
+_SCHEME_ICON = {
+    "VISA":       "\U0001f535",   # 🔵
+    "MASTERCARD": "\U0001f7e0",   # 🟠
+    "AMEX":       "\U0001f7e2",   # 🟢
+    "DISCOVER":   "\U0001f7e1",   # 🟡
+    "UNIONPAY":   "\U0001f534",   # 🔴
+    "JCB":        "\u26aa",       # ⚪
+    "DINERS":     "\U0001f7e3",   # 🟣
+    "MAESTRO":    "\U0001f535",   # 🔵
+}
+
+_LEVEL_ICON = {
+    "INFINITE PRIVILEGE": "\U0001f451",  # 👑
+    "CENTURION":          "\U0001f451",  # 👑
+    "BLACK":              "\u2b1b",      # ⬛
+    "INFINITE":           "\u267e\ufe0f",# ♾
+    "WORLD ELITE":        "\U0001f31f",  # 🌟
+    "WORLD":              "\U0001f30e",  # 🌎
+    "SIGNATURE":          "\u270d\ufe0f",# ✍
+    "PLATINUM":           "\U0001fa69",  # 🪩 → use diamond
+    "GOLD":               "\U0001f947",  # 🥇
+    "BUSINESS":           "\U0001f4bc",  # 💼
+    "CORPORATE":          "\U0001f4bc",  # 💼
+    "COMMERCIAL":         "\U0001f4bc",  # 💼
+    "CLASSIC":            "\U0001f4b3",  # 💳
+    "STANDARD":           "\U0001f4b3",  # 💳
+    "ELECTRON":           "\U0001f4b3",  # 💳
+    "DEBIT":              "\U0001f4b3",  # 💳
+    "PREPAID":            "\U0001f4b3",  # 💳
+}
+
+
+def _opt(label: str, val, emoji: str, trim: int = 30) -> str | None:
+    v = (str(val) if val is not None else "").strip()
+    if not v or v in ("N/A", "—", "none", "unknown"):
+        return None
+    return _lv(label, _trim(v, trim), emoji)
+
+
 def bin_lookup_msg(bin_num: str, info: dict) -> str:
-    prepaid = "Yes" if info.get("prepaid") is True else ("No" if info.get("prepaid") is False else "\u2014")
-    level = _trim(info.get("level") or "\u2014", 22)
+    scheme  = (info.get("scheme") or "N/A").upper()
+    typ     = (info.get("type")   or "N/A").upper()
+    level   = (info.get("level")  or "N/A").upper()
+    prepaid = ("Yes ✅" if info.get("prepaid") is True
+               else ("No 🚫" if info.get("prepaid") is False else "\u2014"))
+
+    scheme_icon = _SCHEME_ICON.get(scheme, "\U0001f4b3")
+    level_icon  = _LEVEL_ICON.get(level, "\u2b50")
+
+    bank_name  = info.get("bank")       or ""
+    bank_city  = info.get("bank_city")  or ""
+    bank_url   = info.get("bank_url")   or ""
+    bank_phone = info.get("bank_phone") or ""
+    currency   = info.get("currency")   or ""
+    c_len      = info.get("card_length") or ""
+
+    country_str = _country_str(info)
+
+    has_bank_extras = any(
+        v and v not in ("N/A", "") for v in [bank_city, bank_url, bank_phone]
+    )
+
     parts = [
         SEP_LONG,
-        "    \U0001f4b3  <b>DDX BIN LOOKUP</b>",
+        f"    {scheme_icon}  <b>DDX BIN LOOKUP</b>",
         SEP_LONG,
-        _lv("BIN", _code(bin_num[:6]), "\U0001f522"),
-        _lv("Brand", info.get("scheme") or "\u2014", "\U0001f3f7"),
-        _lv("Type", info.get("type") or "\u2014", "\U0001f4cb"),
-        _lv("Level", level, "\u2b50"),
-        _lv("Bank", _trim(info.get("bank") or "\u2014", 28), "\U0001f3e6"),
-        _lv("Country", _country_str(info), "\U0001f30d"),
+        _lv("BIN",     _code(bin_num[:6]), "\U0001f522"),
+        "",
+        _lv("Network", scheme,  "\U0001f310"),
+        _lv("Type",    typ,     "\U0001f4cb"),
+        _lv("Level",   f"{level_icon}  {level}", "\u2b50"),
         _lv("Prepaid", prepaid, "\U0001f4b0"),
+    ]
+
+    if c_len and c_len not in ("N/A", ""):
+        parts.append(_lv("Length", f"{c_len} digits", "\U0001f4cf"))
+
+    parts += [
+        "",
+        SEP_LONG,
+        _lv("Bank",    _trim(bank_name, 30), "\U0001f3e6"),
+        _lv("Country", country_str,          "\U0001f30d"),
+    ]
+
+    if currency and currency not in ("N/A", ""):
+        parts.append(_lv("Currency", currency, "\U0001f4b1"))
+
+    if has_bank_extras:
+        parts.append("")
+        if bank_city and bank_city not in ("N/A", ""):
+            parts.append(_lv("City",    _trim(bank_city, 25),  "\U0001f4cd"))
+        if bank_ph := _opt("Phone", bank_phone, "\U0001f4de", 20):
+            parts.append(bank_ph)
+        if bank_url and bank_url not in ("N/A", ""):
+            url = bank_url if bank_url.startswith("http") else "https://" + bank_url
+            parts.append(_lv("Website", f'<a href="{url}">{_trim(bank_url, 28)}</a>', "\U0001f517"))
+
+    parts += [
+        "",
         SEP_LONG,
         "    <i>" + FOOT + "</i>",
     ]
