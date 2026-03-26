@@ -100,7 +100,7 @@ def create_app():
 
     async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Exception while handling update: {context.error}")
-        logger.error(traceback.format_exception(type(context.error), context.error, context.error.__traceback__))
+        logger.error("".join(traceback.format_exception(type(context.error), context.error, context.error.__traceback__)))
         if isinstance(update, Update) and update.effective_message:
             try:
                 await update.effective_message.reply_text("⚠️ حدث خطأ أثناء معالجة طلبك. حاول مرة أخرى.")

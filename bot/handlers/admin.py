@@ -3,14 +3,14 @@ import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.database.queries import (
-    get_detailed_stats, get_recent_users, get_banned_users,
+    get_detailed_stats, get_banned_users,
     get_all_users, set_ban_status, set_premium, get_premium_users_count,
     delete_user, get_users_page, search_user, get_user_info,
 )
-from bot.database.backup import USERS_JSON, get_all_local_users
+from bot.database.backup import USERS_JSON
 from bot.database.bin_db import (
     get_top_bins, get_bin_db_size, get_total_requests_today,
-    get_top_actions, get_user_summary, get_recent_bin_lookups,
+    get_top_actions, get_recent_bin_lookups,
 )
 from bot.utils.cache import bin_cache
 from bot.config.settings import ADMIN_ID
@@ -262,7 +262,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⚡ الكاش          ┃ <b>{cache_size}</b> إدخال"
         f"{bin_lines}"
         f"{action_lines}"
-        f"{S}"
+        f"\n{S}"
     )
     await update.message.reply_text(msg, parse_mode="HTML")
 
@@ -318,8 +318,11 @@ async def admin_callback(query, user):
 
     data = query.data
 
+    # ══ EXACT matches first — then prefix matches ══════════════════════════════
+
     # ── رجوع للرئيسية ────────────────────────────────
     if data == "admin_back":
+        await query.answer()
         total, active, banned, gens, bin_lookups, requests = get_detailed_stats()
         today   = get_total_requests_today()
         premium = get_premium_users_count()
@@ -328,16 +331,17 @@ async def admin_callback(query, user):
 
     # ── إحصائيات مفصّلة ──────────────────────────────
     elif data == "admin_stats":
+        await query.answer()
         total, active, banned, gens, bin_lookups, requests = get_detailed_stats()
-        today   = get_total_requests_today()
-        premium = get_premium_users_count()
+        today    = get_total_requests_today()
+        premium  = get_premium_users_count()
         top_bins = get_top_bins(5)
         db_size  = get_bin_db_size()
         cache_sz = bin_cache.size()
 
         bin_lines = ""
         if top_bins:
-            bin_lines = "\n🏆 أكثر BIN طلباً:\n"
+            bin_lines = "\n\n🏆 أكثر BIN طلباً:\n"
             for i, (b, c) in enumerate(top_bins, 1):
                 bin_lines += f"   {i}. <code>{b}</code>  —  {c}x\n"
 
@@ -356,138 +360,16 @@ async def admin_callback(query, user):
             f"🗄 قاعدة BIN      ┃ <b>{db_size:,}</b> إدخال\n"
             f"⚡ الكاش          ┃ <b>{cache_sz}</b> إدخال"
             f"{bin_lines}"
-            f"{S}"
+            f"\n{S}"
         )
         await query.edit_message_text(msg, reply_markup=_back_btn(), parse_mode="HTML")
 
-    # ── قائمة المستخدمين (paginated) ─────────────────
-    elif data.startswith("admin_ul_"):
-        page = int(data.split("_")[-1])
-        rows, total = get_users_page(page, PER_PAGE)
-        total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-
-        if not rows:
-            await query.edit_message_text("لا يوجد مستخدمون بعد.", reply_markup=_back_btn())
-            return
-
-        header = (
-            f"{S}\n"
-            f"   👥  المستخدمون  —  صفحة {page + 1}/{total_pages}\n"
-            f"{S}\n"
-            f"إجمالي: <b>{total:,}</b> مستخدم\n"
-        )
-
-        btns = []
-        for uid, uname, fname, is_banned, is_prem, reqs, gens, joined in rows:
-            name   = f"@{uname}" if uname else (fname or str(uid))
-            badge  = "🚫" if is_banned else ("💎" if is_prem else "")
-            label  = f"{badge} {name}  ({uid})" if badge else f"{name}  ({uid})"
-            btns.append([InlineKeyboardButton(label, callback_data=f"admin_uc_{uid}")])
-
-        nav = []
-        if page > 0:
-            nav.append(InlineKeyboardButton("◀️ السابق", callback_data=f"admin_ul_{page - 1}"))
-        nav.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="admin_back"))
-        if (page + 1) < total_pages:
-            nav.append(InlineKeyboardButton("التالي ▶️", callback_data=f"admin_ul_{page + 1}"))
-
-        btns.append(nav)
-        btns.append([InlineKeyboardButton("🏠 الرئيسية", callback_data="admin_back")])
-
-        await query.edit_message_text(
-            header, reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML"
-        )
-
-    # ── بطاقة مستخدم ──────────────────────────────────
-    elif data.startswith("admin_uc_"):
-        uid  = int(data.split("_")[-1])
-        info = get_user_info(uid)
-        if not info:
-            await query.answer("❌ المستخدم غير موجود", show_alert=True)
-            return
-        card = _build_user_card(info)
-        kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
-        await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
-
-    # ── حظر من البطاقة ────────────────────────────────
-    elif data.startswith("admin_ban_"):
-        uid = int(data.split("_")[-1])
-        if set_ban_status(uid, True):
-            logger.info(f"Admin banned {uid} via panel")
-            await query.answer("🚫 تم الحظر", show_alert=True)
-        info = get_user_info(uid)
-        if info:
-            card = _build_user_card(info)
-            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
-            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
-
-    # ── رفع الحظر من البطاقة ──────────────────────────
-    elif data.startswith("admin_ub_"):
-        uid = int(data.split("_")[-1])
-        if set_ban_status(uid, False):
-            logger.info(f"Admin unbanned {uid} via panel")
-            await query.answer("✅ تم رفع الحظر", show_alert=True)
-        info = get_user_info(uid)
-        if info:
-            card = _build_user_card(info)
-            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
-            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
-
-    # ── منح Premium من البطاقة ────────────────────────
-    elif data.startswith("admin_gp_"):
-        uid = int(data.split("_")[-1])
-        if set_premium(uid, True):
-            logger.info(f"Admin granted premium to {uid}")
-            await query.answer("💎 تم منح Premium", show_alert=True)
-        info = get_user_info(uid)
-        if info:
-            card = _build_user_card(info)
-            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
-            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
-
-    # ── إلغاء Premium من البطاقة ──────────────────────
-    elif data.startswith("admin_rp_"):
-        uid = int(data.split("_")[-1])
-        if set_premium(uid, False):
-            logger.info(f"Admin revoked premium from {uid}")
-            await query.answer("🔓 تم إلغاء Premium", show_alert=True)
-        info = get_user_info(uid)
-        if info:
-            card = _build_user_card(info)
-            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
-            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
-
-    # ── طلب تأكيد الحذف ───────────────────────────────
-    elif data.startswith("admin_del_"):
-        uid = int(data.split("_")[-1])
-        info = get_user_info(uid)
-        name = ""
-        if info:
-            name = f"@{info['username']}" if info.get("username") else (info.get("first_name") or str(uid))
-        msg = (
-            f"⚠️ <b>تأكيد الحذف</b>\n\n"
-            f"هل تريد حذف المستخدم <b>{name}</b> (<code>{uid}</code>) نهائياً من قاعدة البيانات؟\n\n"
-            f"<i>هذا الإجراء لا يمكن التراجع عنه.</i>"
-        )
-        await query.edit_message_text(msg, reply_markup=_confirm_delete_keyboard(uid), parse_mode="HTML")
-
-    # ── تأكيد الحذف ───────────────────────────────────
-    elif data.startswith("admin_dc_"):
-        uid = int(data.split("_")[-1])
-        ok  = delete_user(uid)
-        if ok:
-            logger.info(f"Admin deleted user {uid}")
-            await query.answer("🗑 تم الحذف نهائياً", show_alert=True)
-            msg = f"✅ تم حذف المستخدم <code>{uid}</code> من قاعدة البيانات."
-            await query.edit_message_text(msg, reply_markup=_back_btn(), parse_mode="HTML")
-        else:
-            await query.answer("❌ فشل الحذف أو المستخدم غير موجود", show_alert=True)
-
-    # ── قائمة المحظورين ───────────────────────────────
+    # ── قائمة المحظورين (exact — must be before admin_ban_ prefix!) ───────────
     elif data == "admin_ban_list":
+        await query.answer()
         banned_list = get_banned_users()
         if not banned_list:
-            await query.edit_message_text("لا يوجد مستخدمون محظورون.", reply_markup=_back_btn())
+            await query.edit_message_text("✅ لا يوجد مستخدمون محظورون.", reply_markup=_back_btn())
             return
         lines = [f"{S}\n   🚫  المحظورون — {len(banned_list)} مستخدم\n{S}\n"]
         btns  = []
@@ -500,8 +382,9 @@ async def admin_callback(query, user):
             "\n".join(lines), reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML"
         )
 
-    # ── قائمة Premium ──────────────────────────────────
+    # ── قائمة Premium (exact) ─────────────────────────
     elif data == "admin_pl":
+        await query.answer()
         from bot.database.connection import execute_query
         rows = execute_query(
             """SELECT user_id, username, first_name, premium_until
@@ -523,8 +406,14 @@ async def admin_callback(query, user):
             "\n".join(lines), reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML"
         )
 
-    # ── سجل BIN ───────────────────────────────────────
+    # ── قاعدة BIN (exact) ────────────────────────────
+    elif data == "admin_bin_db":
+        await query.answer()
+        await _show_bin_db(query)
+
+    # ── سجل BIN (exact) ──────────────────────────────
     elif data == "admin_bin_log":
+        await query.answer()
         rows = get_recent_bin_lookups(12)
         if not rows:
             await query.edit_message_text("لا يوجد سجل BIN بعد.", reply_markup=_back_btn())
@@ -541,15 +430,16 @@ async def admin_callback(query, user):
             "\n".join(lines), reply_markup=_back_btn(), parse_mode="HTML"
         )
 
-    # ── معلومات البث ──────────────────────────────────
+    # ── بث (exact) ───────────────────────────────────
     elif data == "admin_bc_info":
+        await query.answer()
         await query.edit_message_text(
             "📢 <b>بث رسالة</b>\n\nأرسل الأمر:\n<code>/broadcast الرسالة هنا</code>",
             reply_markup=_back_btn(),
             parse_mode="HTML",
         )
 
-    # ── نسخة احتياطية ─────────────────────────────────
+    # ── نسخة احتياطية (exact) ────────────────────────
     elif data == "admin_backup_file":
         if USERS_JSON.exists():
             await query.message.reply_document(
@@ -561,10 +451,7 @@ async def admin_callback(query, user):
         else:
             await query.answer("❌ لا توجد بيانات", show_alert=True)
 
-    # ── قاعدة BIN ─────────────────────────────────────
-    elif data == "admin_bin_db":
-        await _show_bin_db(query)
-
+    # ── تحديث BIN (exact) ────────────────────────────
     elif data in ("admin_bin_update", "admin_bin_force"):
         force = (data == "admin_bin_force")
         if not _bin_scheduler:
@@ -591,19 +478,161 @@ async def admin_callback(query, user):
             logger.error(f"admin_bin_update error: {e}")
             await query.edit_message_text(f"❌ خطأ: {e}", reply_markup=_back_btn("admin_bin_db"))
 
-    # ── Compat: old unban_ callbacks ──────────────────
+    # ══ PREFIX matches — all exact matches are handled above ═══════════════════
+
+    # ── قائمة المستخدمين (paginated) ─────────────────
+    elif data.startswith("admin_ul_"):
+        await query.answer()
+        page = int(data.split("_")[-1])
+        rows, total = get_users_page(page, PER_PAGE)
+        total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+
+        if not rows:
+            await query.edit_message_text("لا يوجد مستخدمون بعد.", reply_markup=_back_btn())
+            return
+
+        header = (
+            f"{S}\n"
+            f"   👥  المستخدمون  —  صفحة {page + 1}/{total_pages}\n"
+            f"{S}\n"
+            f"إجمالي: <b>{total:,}</b> مستخدم\n"
+        )
+
+        btns = []
+        for uid, uname, fname, is_banned, is_prem, reqs, gens, joined in rows:
+            name  = f"@{uname}" if uname else (fname or str(uid))
+            badge = "🚫" if is_banned else ("💎" if is_prem else "")
+            label = f"{badge} {name}  ({uid})" if badge else f"{name}  ({uid})"
+            btns.append([InlineKeyboardButton(label, callback_data=f"admin_uc_{uid}")])
+
+        nav = []
+        if page > 0:
+            nav.append(InlineKeyboardButton("◀️ السابق", callback_data=f"admin_ul_{page - 1}"))
+        nav.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="admin_back"))
+        if (page + 1) < total_pages:
+            nav.append(InlineKeyboardButton("التالي ▶️", callback_data=f"admin_ul_{page + 1}"))
+        btns.append(nav)
+        btns.append([InlineKeyboardButton("🏠 الرئيسية", callback_data="admin_back")])
+
+        await query.edit_message_text(
+            header, reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML"
+        )
+
+    # ── بطاقة مستخدم ──────────────────────────────────
+    elif data.startswith("admin_uc_"):
+        await query.answer()
+        uid  = int(data.split("_")[-1])
+        info = get_user_info(uid)
+        if not info:
+            await query.answer("❌ المستخدم غير موجود", show_alert=True)
+            return
+        card = _build_user_card(info)
+        kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+        await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── حظر من البطاقة ────────────────────────────────
+    elif data.startswith("admin_ban_"):
+        uid = int(data.split("_")[-1])
+        if set_ban_status(uid, True):
+            logger.info(f"Admin banned {uid} via panel")
+            await query.answer("🚫 تم الحظر", show_alert=True)
+        else:
+            await query.answer()
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── رفع الحظر من البطاقة ──────────────────────────
+    elif data.startswith("admin_ub_"):
+        uid = int(data.split("_")[-1])
+        if set_ban_status(uid, False):
+            logger.info(f"Admin unbanned {uid} via panel")
+            await query.answer("✅ تم رفع الحظر", show_alert=True)
+        else:
+            await query.answer()
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── منح Premium ───────────────────────────────────
+    elif data.startswith("admin_gp_"):
+        uid = int(data.split("_")[-1])
+        if set_premium(uid, True):
+            logger.info(f"Admin granted premium to {uid}")
+            await query.answer("💎 تم منح Premium", show_alert=True)
+        else:
+            await query.answer()
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── إلغاء Premium ─────────────────────────────────
+    elif data.startswith("admin_rp_"):
+        uid = int(data.split("_")[-1])
+        if set_premium(uid, False):
+            logger.info(f"Admin revoked premium from {uid}")
+            await query.answer("🔓 تم إلغاء Premium", show_alert=True)
+        else:
+            await query.answer()
+        info = get_user_info(uid)
+        if info:
+            card = _build_user_card(info)
+            kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
+            await query.edit_message_text(card, reply_markup=kb, parse_mode="HTML")
+
+    # ── طلب تأكيد الحذف ───────────────────────────────
+    elif data.startswith("admin_del_"):
+        await query.answer()
+        uid  = int(data.split("_")[-1])
+        info = get_user_info(uid)
+        name = str(uid)
+        if info:
+            name = f"@{info['username']}" if info.get("username") else (info.get("first_name") or str(uid))
+        msg = (
+            f"⚠️ <b>تأكيد الحذف</b>\n\n"
+            f"هل تريد حذف المستخدم <b>{name}</b> (<code>{uid}</code>) نهائياً؟\n\n"
+            f"<i>هذا الإجراء لا يمكن التراجع عنه.</i>"
+        )
+        await query.edit_message_text(msg, reply_markup=_confirm_delete_keyboard(uid), parse_mode="HTML")
+
+    # ── تأكيد الحذف ───────────────────────────────────
+    elif data.startswith("admin_dc_"):
+        uid = int(data.split("_")[-1])
+        ok  = delete_user(uid)
+        if ok:
+            logger.info(f"Admin deleted user {uid}")
+            await query.answer("🗑 تم الحذف نهائياً", show_alert=True)
+            msg = f"✅ تم حذف المستخدم <code>{uid}</code> من قاعدة البيانات."
+            await query.edit_message_text(msg, reply_markup=_back_btn(), parse_mode="HTML")
+        else:
+            await query.answer("❌ فشل الحذف أو المستخدم غير موجود", show_alert=True)
+
+    # ── Compat: old callbacks ─────────────────────────
     elif data.startswith("unban_"):
         uid = int(data.split("_")[1])
         if set_ban_status(uid, False):
-            logger.info(f"Admin unbanned {uid} via panel (compat)")
+            logger.info(f"Admin unbanned {uid} (compat)")
             await query.answer("✅ رُفع الحظر", show_alert=True)
+        else:
+            await query.answer()
         await query.edit_message_text("✅ تم رفع الحظر.", reply_markup=_back_btn())
 
     elif data.startswith("unpremium_"):
         uid = int(data.split("_")[1])
         if set_premium(uid, False):
             await query.answer("🔓 تم إلغاء Premium", show_alert=True)
+        else:
+            await query.answer()
         await query.edit_message_text("✅ تم إلغاء Premium.", reply_markup=_back_btn())
+
+    else:
+        await query.answer()
 
 
 # ─── BIN DB view ─────────────────────────────────────────────────────────────
