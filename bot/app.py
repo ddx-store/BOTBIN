@@ -11,20 +11,24 @@ from bot.handlers.fake import fake_command, fake_regen_callback
 from bot.handlers.admin import (
     admin_panel, ban_command, unban_command,
     broadcast_command, stats_command, admin_callback,
-    user_info_command,
+    user_info_command, updatebins_command, randombin_command,
+    set_bin_scheduler,
 )
 from bot.handlers.router import text_router
 from bot.database.queries import is_user_banned
+from bot.services.bin_updater import BinUpdateScheduler
 from bot.utils.logger import get_logger
 
 logger = get_logger("app")
 
 WEBHOOK_PORT = 8080
 
+_scheduler: BinUpdateScheduler | None = None
+
 
 async def button_callback(update, context):
     query = update.callback_query
-    user = query.from_user
+    user  = query.from_user
     if is_user_banned(user.id):
         await query.answer("\U0001f6ab")
         return
@@ -39,13 +43,23 @@ async def button_callback(update, context):
     elif data.startswith("fake_"):
         await query.answer("\U0001f504")
         await fake_regen_callback(query, user)
-    elif data.startswith("admin_") or data.startswith("ban_") or data.startswith("unban_"):
+    elif (data.startswith("admin_") or data.startswith("ban_")
+          or data.startswith("unban_")):
         await admin_callback(query, user)
 
 
 async def post_init(application):
+    global _scheduler
     init_db()
     await setup_commands(application)
+
+    _scheduler = BinUpdateScheduler(
+        interval_s       = 24 * 3600,
+        initial_delay_s  = 90,
+    )
+    _scheduler.start(application)
+    set_bin_scheduler(_scheduler)
+
     logger.info("Bot initialized successfully.")
     print("DDXSTORE Bot is running.")
 
@@ -69,8 +83,10 @@ def create_app():
     app.add_handler(CommandHandler("ban", ban_command))
     app.add_handler(CommandHandler("unban", unban_command))
     app.add_handler(CommandHandler("broadcast", broadcast_command))
-    app.add_handler(CommandHandler("stats", stats_command))
-    app.add_handler(CommandHandler("user", user_info_command))
+    app.add_handler(CommandHandler("stats",      stats_command))
+    app.add_handler(CommandHandler("user",       user_info_command))
+    app.add_handler(CommandHandler("updatebins", updatebins_command))
+    app.add_handler(CommandHandler("randombin",  randombin_command))
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.Regex(r"^/gen\d+"), gen_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))

@@ -1,5 +1,6 @@
 import re
 import asyncio
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.database.queries import (
@@ -19,6 +20,12 @@ logger = get_logger("admin")
 
 SEP = "─" * 20
 
+_bin_scheduler = None
+
+def set_bin_scheduler(scheduler):
+    global _bin_scheduler
+    _bin_scheduler = scheduler
+
 
 def is_admin(user_id):
     return ADMIN_ID and user_id == ADMIN_ID
@@ -30,6 +37,7 @@ def _main_keyboard():
         [InlineKeyboardButton("👥 المشتركون",           callback_data="admin_all_users")],
         [InlineKeyboardButton("📈 نشاط المستخدمين",    callback_data="admin_user_activity")],
         [InlineKeyboardButton("💳 سجل BIN",            callback_data="admin_bin_log")],
+        [InlineKeyboardButton("🗄 قاعدة BIN",          callback_data="admin_bin_db")],
         [InlineKeyboardButton("🚫 المحظورون",           callback_data="admin_ban_list")],
         [InlineKeyboardButton("📢 رسالة جماعية",       callback_data="admin_broadcast")],
         [InlineKeyboardButton("💾 نسخ احتياطي",        callback_data="admin_backup_file")],
@@ -398,3 +406,144 @@ async def admin_callback(query, user):
             "أرسل: /broadcast <الرسالة>",
             reply_markup=_back_btn(),
         )
+
+    elif data == "admin_bin_db":
+        await _show_bin_db(query)
+
+    elif data in ("admin_bin_update", "admin_bin_force"):
+        force = (data == "admin_bin_force")
+        if not _bin_scheduler:
+            await query.answer("❌ المُحدِّث غير مفعّل", show_alert=True)
+            return
+        await query.answer("⏳ جاري التحديث..." if not force else "⚡ تحديث إجباري...")
+        await query.edit_message_text(
+            "⏳ جاري تحديث قاعدة BIN، انتظر قليلاً...",
+            reply_markup=_back_btn(),
+        )
+        try:
+            stats = await _bin_scheduler.run_now(force=force)
+            msg = (
+                f"✅ <b>اكتمل تحديث BIN</b>\n"
+                f"{'─' * 20}\n\n"
+                f"🆕 جديد:       <b>{stats['new']}</b>\n"
+                f"♻️ محدّث:      <b>{stats['updated']}</b>\n"
+                f"❌ فشل:        <b>{stats['failed']}</b>\n"
+                f"📦 إجمالي DB:  <b>{stats['total_db']}</b>\n"
+                f"⏱ الوقت:      <b>{stats['duration_s']}s</b>"
+            )
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 رجوع", callback_data="admin_bin_db")],
+            ])
+            await query.edit_message_text(msg, reply_markup=kb, parse_mode="HTML")
+        except Exception as e:
+            logger.error(f"admin_bin_update error: {e}")
+            await query.edit_message_text(f"❌ خطأ: {e}", reply_markup=_back_btn())
+
+
+async def _show_bin_db(query):
+    total = get_bin_db_size()
+    top   = get_top_bins(5)
+
+    status_txt = ""
+    if _bin_scheduler:
+        st = _bin_scheduler.status()
+        nxt = st.get("next_run_in")
+        nxt_str = f"{nxt // 3600}h {(nxt % 3600) // 60}m" if nxt else "قريباً"
+        ls  = st.get("last_stats") or {}
+        status_txt = (
+            f"\n⏱ التحديث القادم: {nxt_str}\n"
+            f"📦 آخر تحديث: +{ls.get('new', '—')} جديد, {ls.get('updated', '—')} محدّث"
+        )
+
+    top_lines = "\n".join(f"   {i}. <code>{b}</code>  —  {c}x"
+                          for i, (b, c) in enumerate(top, 1)) if top else "   لا توجد بيانات"
+
+    msg = (
+        f"🗄  <b>قاعدة بيانات BIN</b>\n"
+        f"{'─' * 22}\n\n"
+        f"📊 إجمالي BINs في DB: <b>{total}</b>"
+        f"{status_txt}\n\n"
+        f"🏆 <b>أكثر BIN طلباً:</b>\n{top_lines}"
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 تحديث الآن",      callback_data="admin_bin_update")],
+        [InlineKeyboardButton("⚡ تحديث إجباري",    callback_data="admin_bin_force")],
+        [InlineKeyboardButton("🔙 رجوع",            callback_data="admin_back")],
+    ])
+    await query.edit_message_text(msg, reply_markup=kb, parse_mode="HTML")
+
+
+async def updatebins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin command: /updatebins [force] — trigger BIN database update."""
+    if not update.message or not is_admin(update.message.from_user.id):
+        return
+    if not _bin_scheduler:
+        await update.message.reply_text("❌ المُحدِّث غير مفعّل.")
+        return
+
+    force = bool(context.args and context.args[0].lower() == "force")
+    wait  = await update.message.reply_text(
+        "⏳ جاري تحديث قاعدة BIN...\n"
+        f"{'(تحديث إجباري)' if force else ''}"
+    )
+    try:
+        stats = await _bin_scheduler.run_now(force=force)
+        msg = (
+            f"✅ <b>اكتمل تحديث BIN</b>\n"
+            f"{'─' * 20}\n\n"
+            f"🆕 جديد:       <b>{stats['new']}</b>\n"
+            f"♻️ محدّث:      <b>{stats['updated']}</b>\n"
+            f"❌ فشل:        <b>{stats['failed']}</b>\n"
+            f"📦 إجمالي DB:  <b>{stats['total_db']}</b>\n"
+            f"⏱ الوقت:      <b>{stats['duration_s']}s</b>"
+        )
+        await wait.edit_text(msg, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"updatebins command error: {e}")
+        await wait.edit_text(f"❌ خطأ: {e}")
+
+
+async def randombin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin command: /randombin [brand] [type] [country] — get a random BIN."""
+    if not update.message or not is_admin(update.message.from_user.id):
+        return
+    if not _bin_scheduler:
+        await update.message.reply_text("❌ المُحدِّث غير مفعّل.")
+        return
+
+    brand = context.args[0].upper() if len(context.args) > 0 else None
+    type_ = context.args[1].upper() if len(context.args) > 1 else None
+    cc    = context.args[2].upper() if len(context.args) > 2 else None
+
+    row = _bin_scheduler.updater.get_random_bin(brand=brand, type_=type_, country_code=cc)
+    if not row:
+        await update.message.reply_text(
+            "❌ لم يُعثر على BIN بهذه الفلاتر.\n"
+            "استخدام: /randombin [VISA/MC/AMEX] [CREDIT/DEBIT] [US/GB/SA]"
+        )
+        return
+
+    bin_num   = row.get("bin", "—")
+    scheme    = row.get("scheme", "N/A")
+    typ       = row.get("type", "N/A")
+    level     = row.get("level", "N/A")
+    bank      = row.get("bank", "N/A")
+    country   = row.get("country", "N/A")
+    ccode     = row.get("country_code", "")
+    emoji     = row.get("emoji") or ""
+    currency  = row.get("currency", "N/A")
+    source    = row.get("source", "—")
+
+    msg = (
+        f"🎲 <b>Random BIN</b>\n"
+        f"{'─' * 20}\n\n"
+        f"🔢 BIN:       <code>{bin_num}</code>\n"
+        f"🌐 Network:   <b>{scheme}</b>\n"
+        f"📋 Type:      <b>{typ}</b>\n"
+        f"⭐ Level:     <b>{level}</b>\n"
+        f"🏦 Bank:      {bank}\n"
+        f"🌍 Country:   {country} {emoji}\n"
+        f"💱 Currency:  {currency}\n"
+        f"📡 Source:    {source}"
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")

@@ -29,20 +29,29 @@ telegram-bot/
 │   │   ├── bin_db.py      # BIN database helpers
 │   │   └── backup.py      # Backup system
 │   ├── handlers/          # Telegram command handlers
-│   ├── middlewares/       # Bot middlewares
-│   ├── services/          # External services (i18n, country)
-│   └── utils/             # Utilities (logger, rate limiter, cache, etc.)
-├── scripts/
-│   └── import_bins.py    # BIN data import script
-└── country_autodetect.py # Country detection utility
+│   │   ├── admin.py       # Admin panel + BIN update commands
+│   │   ├── bin_cmd.py     # /bin lookup
+│   │   ├── check.py       # /chk card checker
+│   │   ├── address.py     # /address generator
+│   │   ├── fake.py        # /fake identity
+│   │   └── gen.py         # /gen card generator
+│   ├── services/
+│   │   ├── country_service.py   # Country/address data
+│   │   ├── i18n.py              # Message strings
+│   │   └── bin_updater/         # BIN update engine
+│   │       ├── sources.py       # 3 API sources (binlist/handyapi/freebinlist)
+│   │       ├── updater.py       # BinListUpdater class + get_random_bin()
+│   │       └── scheduler.py     # 24h background scheduler
+│   └── utils/             # logger, rate_limiter, cache, formatter, bin_lookup
 ```
 
 ## Architecture
 
 - **Runtime**: Python 3.12
 - **Framework**: python-telegram-bot 21.0.1
-- **Database**: PostgreSQL (Replit built-in)
-- **External APIs**: BIN lookup (binlist.net), REST Countries API
+- **Database**: PostgreSQL (users/stats) + SQLite (BIN cache, 6+ new columns)
+- **BIN Sources**: binlist.net → handyapi.com → freebinlist.net → range detection
+- **Auto-Update**: BIN DB refreshes every 24h in background (starts 90s after boot)
 
 ## Required Environment Secrets
 
