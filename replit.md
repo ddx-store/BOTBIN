@@ -49,11 +49,34 @@ telegram-bot/
 
 - **Runtime**: Python 3.12
 - **Framework**: python-telegram-bot 21.0.1
-- **Database**: PostgreSQL (users/stats) + SQLite (BIN cache, WAL+indexes, 9 columns)
-- **BIN Sources**: binlist.net → handyapi.com → bintable.com (circuit breaker per source)
-- **BIN Update**: Manual-only via `/updatebins`; `update_stale_bins()` for targeted refresh
+- **Database**: PostgreSQL (users/stats: user_id, username, first_name, is_banned, is_premium, premium_until, request_count, gen_count, joined_at, lang) + SQLite (BIN cache, WAL+indexes)
+- **BIN Sources**: binlist.net → handyapi.com → range_detect (memory cache → SQLite → API)
+- **BIN Update**: Manual-only via `/updatebins`
 - **Countries**: 51 countries across 6 regions (CITY_DATA) with cities/districts/streets/zip/phone
 - **SEED_BINS**: 696 unique BINs covering Gulf/MENA, Europe, Asia, LatAm, Africa
+- **Membership**: Free (10 cards/gen) vs Premium (200 cards/gen); admin grants via /premium
+
+## User Commands
+
+| Command | Description |
+|---|---|
+| `/gen BIN\|MM\|YY[\|CVV][ count]` | Generate cards (all separator formats supported) |
+| `/bin <6-digit BIN>` | BIN lookup with scheme/type/level/bank/country/region |
+| `/chk <card>[\|MM\|YY[\|CVV]]` | Card validation (Luhn + expiry + length + BIN region) |
+| `/address <country>` | Random address with district field |
+| `/fake <country>` | Fake identity |
+| `/myinfo` | Show user's own stats (join date, request count, gen count, premium status) |
+
+## Admin Commands
+
+| Command | Description |
+|---|---|
+| `/admin` | Admin panel (stats, users, BIN log, premium list) |
+| `/ban <id>` / `/unban <id>` | Ban/unban user |
+| `/premium <id> [days]` | Grant premium (permanent or N days) |
+| `/unpremium <id>` | Revoke premium |
+| `/broadcast <msg>` | Message all users |
+| `/updatebins` | Refresh BIN cache |
 
 ## Required Environment Secrets
 

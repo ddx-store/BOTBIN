@@ -3,6 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.database.queries import (
     is_user_banned, increment_gen_stat, increment_request_count, increment_request_stat,
+    is_premium_user, increment_gen_count,
 )
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
@@ -58,10 +59,11 @@ def _parse_gen_input(text: str):
     if not full_input:
         return None, None, None, None, None
 
-    # Pipe format: BIN|MM|YY[|CVV][ count]
-    # e.g. 4111xxxx|01|2026|123  or  4111xxxx|01|2026|123 20
+    # Pipe/slash/dash format with optional spaces around separators:
+    # BIN|MM|YY[|CVV][ count]   — CVV must be 3-4 digits to distinguish from count
     pipe_match = re.match(
-        r"^([\dxX]{6,19})[|/\-](\d{1,2})[|/\-](\d{2,4})(?:[|/\-](\d{1,4}))?(?:\s+(\d{1,3}))?$",
+        r"^([\dxX]{6,19})\s*[|/\-]\s*(\d{1,2})\s*[|/\-]\s*(\d{2,4})"
+        r"(?:\s*[|/\-]\s*(\d{3,4}))?(?:\s+(\d{1,3}))?$",
         full_input.strip(),
         re.IGNORECASE,
     )
@@ -77,6 +79,7 @@ def _parse_gen_input(text: str):
             year = year[2:]
         return bin_input, month, year, count, fixed_cvv
 
+    # Space-separated fallback: BIN [MM YY [CVV [count]]] or BIN [count]
     clean_input = re.sub(r"[|\-/]", " ", full_input)
     parts = clean_input.split()
     bin_input, month, year = None, None, None
@@ -95,20 +98,41 @@ def _parse_gen_input(text: str):
     if len(remaining) >= 2:
         p1, p2 = remaining[0], remaining[1]
         try:
-            if 1 <= int(p1) <= 12:
+            v1, v2 = int(p1), int(p2)
+            if 1 <= v1 <= 12 and (len(p2) in (2, 4)):
                 month, year = p1.zfill(2), p2
-            elif 1 <= int(p2) <= 12:
+            elif 1 <= v2 <= 12 and (len(p1) in (2, 4)):
                 month, year = p2.zfill(2), p1
         except ValueError:
             pass
         if year and len(year) == 4:
             year = year[2:]
-        if len(remaining) >= 3 and remaining[2].isdigit():
-            count = min(int(remaining[2]), MAX_CARD_COUNT)
+
+        rest = remaining[2:]
+        if rest:
+            r0 = rest[0]
+            # CVV is exactly 3-4 digits; treat as CVV only if it looks like one
+            if len(r0) in (3, 4):
+                fixed_cvv = r0.zfill(3)
+                if len(rest) > 1 and rest[1].isdigit():
+                    try:
+                        count = min(int(rest[1]), MAX_CARD_COUNT)
+                    except ValueError:
+                        pass
+            else:
+                try:
+                    val = int(r0)
+                    if 2 <= val <= MAX_CARD_COUNT:
+                        count = val
+                except ValueError:
+                    pass
     elif len(remaining) == 1:
-        val = int(remaining[0])
-        if 2 <= val <= MAX_CARD_COUNT:
-            count = val
+        try:
+            val = int(remaining[0])
+            if 2 <= val <= MAX_CARD_COUNT:
+                count = val
+        except ValueError:
+            pass
 
     return bin_input, month, year, count, fixed_cvv
 
@@ -157,8 +181,23 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         return
 
+    premium = is_premium_user(user.id)
+    free_limit = 10
+    max_allowed = MAX_CARD_COUNT if premium else free_limit
+    capped = False
+    if count > max_allowed:
+        count = max_allowed
+        capped = True
+
     increment_request_count(user.id)
+    increment_gen_count(user.id)
     logger.info(f"User {user.id} /gen BIN={raw_digits[:6]} count={count} cvv={fixed_cvv}")
+
+    cap_note = (
+        "⚠️ حسابك المجاني محدود بـ 10 بطاقات.\n"
+        "💎 تواصل مع الأدمن للترقية إلى Premium (200 بطاقة)."
+        if capped and not premium else None
+    )
 
     if count > LARGE_GEN_THRESHOLD:
         wait_msg = await update.message.reply_text(MSG_QUEUED)
@@ -168,6 +207,8 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg, markup = await format_gen_response(user, bin_input, count, month, year, fixed_cvv)
                 await wait_msg.delete()
                 await update.message.reply_text(msg, reply_markup=markup, parse_mode="HTML")
+                if cap_note:
+                    await update.message.reply_text(cap_note)
             except Exception as e:
                 logger.error(f"Queue gen error: {e}")
                 await wait_msg.edit_text(MSG_ERROR)
@@ -181,6 +222,8 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg, markup = await format_gen_response(user, bin_input, count, month, year, fixed_cvv)
             await wait_msg.delete()
             await update.message.reply_text(msg, reply_markup=markup, parse_mode="HTML")
+            if cap_note:
+                await update.message.reply_text(cap_note)
         except Exception as e:
             logger.error(f"Gen error: {e}")
             await wait_msg.edit_text(MSG_ERROR)

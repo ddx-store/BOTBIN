@@ -10,10 +10,12 @@ from bot.handlers.bin_cmd import bin_command
 from bot.handlers.check import chk_command
 from bot.handlers.address import address_command, address_regen_callback
 from bot.handlers.fake import fake_command, fake_regen_callback
+from bot.handlers.myinfo import myinfo_command
 from bot.handlers.admin import (
     admin_panel, ban_command, unban_command,
     broadcast_command, stats_command, admin_callback,
     user_info_command, updatebins_command, randombin_command,
+    premium_command, unpremium_command,
     set_bin_scheduler,
 )
 from bot.handlers.router import text_router
@@ -46,7 +48,7 @@ async def button_callback(update, context):
         await query.answer("\U0001f504")
         await fake_regen_callback(query, user)
     elif (data.startswith("admin_") or data.startswith("ban_")
-          or data.startswith("unban_")):
+          or data.startswith("unban_") or data.startswith("unpremium_")):
         await admin_callback(query, user)
 
 
@@ -81,14 +83,17 @@ def create_app():
     app.add_handler(CommandHandler("check", chk_command))
     app.add_handler(CommandHandler("address", address_command))
     app.add_handler(CommandHandler("fake", fake_command))
-    app.add_handler(CommandHandler("admin", admin_panel))
-    app.add_handler(CommandHandler("ban", ban_command))
-    app.add_handler(CommandHandler("unban", unban_command))
-    app.add_handler(CommandHandler("broadcast", broadcast_command))
+    app.add_handler(CommandHandler("myinfo",     myinfo_command))
+    app.add_handler(CommandHandler("admin",      admin_panel))
+    app.add_handler(CommandHandler("ban",        ban_command))
+    app.add_handler(CommandHandler("unban",      unban_command))
+    app.add_handler(CommandHandler("broadcast",  broadcast_command))
     app.add_handler(CommandHandler("stats",      stats_command))
     app.add_handler(CommandHandler("user",       user_info_command))
     app.add_handler(CommandHandler("updatebins", updatebins_command))
     app.add_handler(CommandHandler("randombin",  randombin_command))
+    app.add_handler(CommandHandler("premium",    premium_command))
+    app.add_handler(CommandHandler("unpremium",  unpremium_command))
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.Regex(r"^/gen\d+"), gen_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))

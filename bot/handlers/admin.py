@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.database.queries import (
     get_detailed_stats, get_recent_users, get_banned_users,
-    get_all_users, set_ban_status,
+    get_all_users, set_ban_status, set_premium, get_premium_users_count,
 )
 from bot.database.backup import USERS_JSON, get_all_local_users
 from bot.database.bin_db import (
@@ -39,6 +39,7 @@ def _main_keyboard():
         [InlineKeyboardButton("💳 سجل BIN",            callback_data="admin_bin_log")],
         [InlineKeyboardButton("🗄 قاعدة BIN",          callback_data="admin_bin_db")],
         [InlineKeyboardButton("🚫 المحظورون",           callback_data="admin_ban_list")],
+        [InlineKeyboardButton("💎 المشتركون Premium",  callback_data="admin_premium_list")],
         [InlineKeyboardButton("📢 رسالة جماعية",       callback_data="admin_broadcast")],
         [InlineKeyboardButton("💾 نسخ احتياطي",        callback_data="admin_backup_file")],
     ])
@@ -92,6 +93,48 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if target_id and set_ban_status(target_id, False):
         logger.info(f"Admin unbanned user {target_id}")
         await update.message.reply_text(f"✅ تم رفع الحظر عن {target_id}")
+
+
+async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not is_admin(update.message.from_user.id):
+        return
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "❌ الاستخدام:\n"
+            "/premium <user_id>        — اشتراك دائم\n"
+            "/premium <user_id> 30     — اشتراك 30 يوم\n"
+            "/unpremium <user_id>      — إلغاء الاشتراك"
+        )
+        return
+    target_id = int(args[0]) if args[0].isdigit() else 0
+    days = int(args[1]) if len(args) > 1 and args[1].isdigit() else None
+    if not target_id:
+        await update.message.reply_text("❌ ID غير صحيح")
+        return
+    ok = set_premium(target_id, True, days)
+    if ok:
+        note = f" لمدة {days} يوم" if days else " (دائم)"
+        logger.info(f"Admin granted premium to {target_id}{note}")
+        await update.message.reply_text(f"💎 تم منح Premium لـ {target_id}{note}")
+    else:
+        await update.message.reply_text("❌ لم يتم العثور على المستخدم أو حدث خطأ.")
+
+
+async def unpremium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not is_admin(update.message.from_user.id):
+        return
+    args = context.args or []
+    if not args or not args[0].isdigit():
+        await update.message.reply_text("❌ الاستخدام: /unpremium <user_id>")
+        return
+    target_id = int(args[0])
+    ok = set_premium(target_id, False)
+    if ok:
+        logger.info(f"Admin revoked premium from {target_id}")
+        await update.message.reply_text(f"🔓 تم إلغاء Premium عن {target_id}")
+    else:
+        await update.message.reply_text("❌ لم يتم العثور على المستخدم أو حدث خطأ.")
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -354,6 +397,32 @@ async def admin_callback(query, user):
             await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(btns))
         else:
             await query.edit_message_text("لا يوجد مستخدمون محظورون.", reply_markup=_back_btn())
+
+    elif data == "admin_premium_list":
+        from bot.database.connection import execute_query
+        rows = execute_query(
+            """SELECT user_id, username, first_name, premium_until
+               FROM bot_users WHERE is_premium = TRUE ORDER BY user_id""",
+            fetch=True,
+        ) or []
+        if rows:
+            lines = [f"💎 المشتركون Premium — {len(rows)} عضو\n{SEP}"]
+            btns = []
+            for uid, uname, fname, until in rows:
+                name = f"@{uname}" if uname else fname or str(uid)
+                exp = str(until)[:10] if until else "دائم"
+                lines.append(f"• {name} ({uid})\n  📅 حتى: {exp}")
+                btns.append([InlineKeyboardButton(f"❌ إلغاء Premium: {name}", callback_data=f"unpremium_{uid}")])
+            btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
+            await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(btns))
+        else:
+            await query.edit_message_text("لا يوجد مشتركون Premium حتى الآن.", reply_markup=_back_btn())
+
+    elif data.startswith("unpremium_"):
+        target_id = int(data.split("_")[1])
+        if set_premium(target_id, False):
+            await query.answer(f"🔓 تم إلغاء Premium عن {target_id}", show_alert=True)
+        await query.edit_message_text("✅ تم التحديث.", reply_markup=_back_btn())
 
     elif data == "admin_backup_file":
         if USERS_JSON.exists():

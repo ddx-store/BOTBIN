@@ -1601,12 +1601,18 @@ def get_address_text(country_name, use_arabic=False):
     flag        = _get_flag(country_name)
     upper_name  = country_name.upper()
 
+    district = addr.get("district") or ""
+
     lines = [
         f"\U0001f4cd {upper_name} \u2014  Address {flag}",
         _SEP,
         f"\U0001f194 Full Name: {full_name}",
         f"\U0001f464 Gender: {gender}",
         f"\U0001f3e0 Street Address: {addr.get('street') or '\u2014'}",
+    ]
+    if district:
+        lines.append(f"\U0001f3d8\ufe0f District: {district}")
+    lines += [
         f"\U0001f3d9\ufe0f City/Town: {addr.get('city') or '\u2014'}",
         f"\U0001f5fa\ufe0f State/Region: {addr.get('state') or '\u2014'}",
         f"\U0001f4ee Postal Code: {addr.get('zip') or '\u2014'}",

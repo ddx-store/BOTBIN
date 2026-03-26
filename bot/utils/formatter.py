@@ -182,12 +182,17 @@ def bin_lookup_msg(bin_num: str, info: dict) -> str:
     if c_len and c_len not in ("N/A", ""):
         parts.append(_lv("Length", f"{c_len} digits", "\U0001f4cf"))
 
+    region = (info.get("issued_region") or "").strip()
+
     parts += [
         "",
         SEP_LONG,
         _lv("Bank",    _trim(bank_name, 30), "\U0001f3e6"),
         _lv("Country", country_str,          "\U0001f30d"),
     ]
+
+    if region and region not in ("N/A", ""):
+        parts.append(_lv("Region", _e(region), "\U0001f5fa\ufe0f"))
 
     if currency and currency not in ("N/A", ""):
         parts.append(_lv("Currency", _e(currency), "\U0001f4b1"))
@@ -253,12 +258,17 @@ def chk_msg(card_number: str, valid: bool, info: dict,
     if expiry_note is not None:
         parts.append(_lv("Validity", expiry_note, "\u23f3"))
 
+    chk_region = (info.get("issued_region") or "").strip()
     parts += [
         _lv("Brand",   _e(info.get("scheme") or "\u2014"), "\U0001f3f7"),
         _lv("Type",    _e(info.get("type") or "\u2014"), "\U0001f4cb"),
         _lv("Level",   _e(info.get("level") or "\u2014"), "\u2b50"),
         _lv("Bank",    _trim(info.get("bank") or "\u2014", 28), "\U0001f3e6"),
         _lv("Country", _country_str(info), "\U0001f30d"),
+    ]
+    if chk_region and chk_region not in ("N/A", ""):
+        parts.append(_lv("Region", _e(chk_region), "\U0001f5fa\ufe0f"))
+    parts += [
         SEP_LONG,
         _lv("Full",    _code(full_card), "\U0001f4cb"),
         SEP_LONG,

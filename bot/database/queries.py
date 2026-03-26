@@ -140,6 +140,92 @@ def get_recent_users(limit=10):
     return result if result else []
 
 
+def get_user_info(user_id: int) -> dict | None:
+    if not DATABASE_URL:
+        return None
+    result = execute_query(
+        """SELECT user_id, username, first_name, is_banned, is_premium,
+                  premium_until, request_count, gen_count, joined_at
+           FROM bot_users WHERE user_id = %s""",
+        (user_id,), fetch_one=True,
+    )
+    if not result:
+        return None
+    return {
+        "user_id":       result[0],
+        "username":      result[1],
+        "first_name":    result[2],
+        "is_banned":     result[3] or False,
+        "is_premium":    result[4] or False,
+        "premium_until": result[5],
+        "request_count": result[6] or 0,
+        "gen_count":     result[7] or 0,
+        "joined_at":     result[8],
+    }
+
+
+def is_premium_user(user_id: int) -> bool:
+    if not DATABASE_URL:
+        return False
+    result = execute_query(
+        "SELECT is_premium, premium_until FROM bot_users WHERE user_id = %s",
+        (user_id,), fetch_one=True,
+    )
+    if not result or not result[0]:
+        return False
+    if result[1]:
+        from datetime import datetime
+        if datetime.now() > result[1]:
+            execute_query(
+                "UPDATE bot_users SET is_premium = FALSE, premium_until = NULL WHERE user_id = %s",
+                (user_id,),
+            )
+            return False
+    return True
+
+
+def set_premium(user_id: int, status: bool, days: int = None) -> bool:
+    if not DATABASE_URL:
+        return False
+    if status and days:
+        from datetime import datetime, timedelta
+        until = datetime.now() + timedelta(days=days)
+        result = execute_query(
+            "UPDATE bot_users SET is_premium = TRUE, premium_until = %s WHERE user_id = %s",
+            (until, user_id),
+        )
+    elif status:
+        result = execute_query(
+            "UPDATE bot_users SET is_premium = TRUE, premium_until = NULL WHERE user_id = %s",
+            (user_id,),
+        )
+    else:
+        result = execute_query(
+            "UPDATE bot_users SET is_premium = FALSE, premium_until = NULL WHERE user_id = %s",
+            (user_id,),
+        )
+    return result is not None and result > 0
+
+
+def get_premium_users_count() -> int:
+    if not DATABASE_URL:
+        return 0
+    result = execute_query(
+        "SELECT COUNT(*) FROM bot_users WHERE is_premium = TRUE",
+        fetch_one=True,
+    )
+    return result[0] if result else 0
+
+
+def increment_gen_count(user_id: int):
+    if not DATABASE_URL:
+        return
+    execute_query(
+        "UPDATE bot_users SET gen_count = gen_count + 1 WHERE user_id = %s",
+        (user_id,),
+    )
+
+
 def get_user_lang(user_id):
     if not DATABASE_URL:
         return "en"

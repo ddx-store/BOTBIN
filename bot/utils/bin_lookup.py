@@ -110,6 +110,31 @@ _RANGE_DETECT = [
 ]
 
 
+_REGION_MAP: dict = {
+    "US": "North America", "CA": "North America", "MX": "North America",
+    "GB": "Europe", "DE": "Europe", "FR": "Europe", "IT": "Europe", "ES": "Europe",
+    "NL": "Europe", "BE": "Europe", "CH": "Europe", "AT": "Europe", "SE": "Europe",
+    "NO": "Europe", "DK": "Europe", "FI": "Europe", "PT": "Europe", "PL": "Europe",
+    "CZ": "Europe", "HU": "Europe", "RO": "Europe", "GR": "Europe", "TR": "Europe",
+    "RU": "Europe",
+    "SA": "Middle East", "AE": "Middle East", "KW": "Middle East", "QA": "Middle East",
+    "BH": "Middle East", "OM": "Middle East", "JO": "Middle East", "LB": "Middle East",
+    "IQ": "Middle East", "IR": "Middle East", "IL": "Middle East", "YE": "Middle East",
+    "EG": "Africa", "ZA": "Africa", "NG": "Africa", "KE": "Africa", "GH": "Africa",
+    "MA": "Africa", "TN": "Africa", "DZ": "Africa", "ET": "Africa", "SN": "Africa",
+    "CN": "Asia", "JP": "Asia", "KR": "Asia", "IN": "Asia", "SG": "Asia",
+    "HK": "Asia", "TW": "Asia", "TH": "Asia", "MY": "Asia", "ID": "Asia",
+    "PH": "Asia", "VN": "Asia", "PK": "Asia", "BD": "Asia",
+    "BR": "Latin America", "AR": "Latin America", "CL": "Latin America",
+    "CO": "Latin America", "PE": "Latin America", "VE": "Latin America",
+    "AU": "Oceania", "NZ": "Oceania",
+}
+
+
+def _get_region(country_code: str) -> str:
+    return _REGION_MAP.get((country_code or "").upper(), "N/A")
+
+
 def _flag(code: str) -> str:
     if not code or len(code) != 2:
         return "\U0001f3f3\ufe0f"
@@ -164,21 +189,22 @@ def _parse_binlist(data: dict, key: str) -> dict:
     c_length = str(num_obj.get("length") or "N/A")
 
     return {
-        "scheme":       scheme,
-        "type":         typ,
-        "brand":        brand,
-        "level":        level,
-        "bank":         bank_name,
-        "bank_city":    bank_city,
-        "bank_url":     bank_url,
-        "bank_phone":   bank_ph,
-        "country":      country_name,
-        "country_code": country_code,
-        "currency":     currency,
-        "card_length":  c_length,
-        "emoji":        emoji,
-        "prepaid":      data.get("prepaid"),
-        "source":       "binlist",
+        "scheme":        scheme,
+        "type":          typ,
+        "brand":         brand,
+        "level":         level,
+        "bank":          bank_name,
+        "bank_city":     bank_city,
+        "bank_url":      bank_url,
+        "bank_phone":    bank_ph,
+        "country":       country_name,
+        "country_code":  country_code,
+        "currency":      currency,
+        "card_length":   c_length,
+        "emoji":         emoji,
+        "prepaid":       data.get("prepaid"),
+        "issued_region": _get_region(country_code),
+        "source":        "binlist",
     }
 
 
@@ -195,21 +221,22 @@ def _parse_handyapi(data: dict, key: str) -> dict:
     isd          = (cntry.get("ISD") or "N/A")
 
     return {
-        "scheme":       scheme,
-        "type":         typ,
-        "brand":        scheme,
-        "level":        level,
-        "bank":         issuer,
-        "bank_city":    "N/A",
-        "bank_url":     "N/A",
-        "bank_phone":   isd if isd != "N/A" else "N/A",
-        "country":      country_name,
-        "country_code": country_code,
-        "currency":     "N/A",
-        "card_length":  "16",
-        "emoji":        _flag(country_code),
-        "prepaid":      None,
-        "source":       "handyapi",
+        "scheme":        scheme,
+        "type":          typ,
+        "brand":         scheme,
+        "level":         level,
+        "bank":          issuer,
+        "bank_city":     "N/A",
+        "bank_url":      "N/A",
+        "bank_phone":    isd if isd != "N/A" else "N/A",
+        "country":       country_name,
+        "country_code":  country_code,
+        "currency":      "N/A",
+        "card_length":   "16",
+        "emoji":         _flag(country_code),
+        "prepaid":       None,
+        "issued_region": _get_region(country_code),
+        "source":        "handyapi",
     }
 
 

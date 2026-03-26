@@ -63,6 +63,24 @@ def init_db():
                 ) THEN
                     ALTER TABLE bot_users ADD COLUMN lang TEXT DEFAULT 'en';
                 END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='bot_users' AND column_name='is_premium'
+                ) THEN
+                    ALTER TABLE bot_users ADD COLUMN is_premium BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='bot_users' AND column_name='premium_until'
+                ) THEN
+                    ALTER TABLE bot_users ADD COLUMN premium_until TIMESTAMP DEFAULT NULL;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='bot_users' AND column_name='gen_count'
+                ) THEN
+                    ALTER TABLE bot_users ADD COLUMN gen_count BIGINT DEFAULT 0;
+                END IF;
             END $$;
         """)
 
