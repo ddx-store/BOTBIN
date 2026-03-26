@@ -972,8 +972,44 @@ async def find_country(text):
     return None, use_arabic
 
 
-_SEP  = "\u2500" * 11   # ─────────────
+_SEP  = "\u2501" * 14   # ━━━━━━━━━━━━━━
 _FOOT = "\u00a9 DDXSTORE \u2022 @ddx22"
+
+_COUNTRY_CODES = {
+    "Algeria": "DZ", "Australia": "AU", "Bahrain": "BH", "Brazil": "BR",
+    "Canada": "CA", "China": "CN", "Egypt": "EG", "France": "FR",
+    "Germany": "DE", "India": "IN", "Iraq": "IQ", "Italy": "IT",
+    "Japan": "JP", "Jordan": "JO", "Kuwait": "KW", "Lebanon": "LB",
+    "Mexico": "MX", "Morocco": "MA", "Oman": "OM", "Qatar": "QA",
+    "Russia": "RU", "Saudi Arabia": "SA", "South Korea": "KR",
+    "Spain": "ES", "Tunisia": "TN", "Turkey": "TR",
+    "United Arab Emirates": "AE", "United Kingdom": "GB", "United States": "US",
+}
+
+_GENDERS = ["Male", "Female"]
+
+_DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com"]
+
+
+def _flag(code: str) -> str:
+    if not code or len(code) != 2:
+        return ""
+    return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code.upper())
+
+
+def _get_flag(country_name: str) -> str:
+    code = _COUNTRY_CODES.get(country_name, "")
+    return _flag(code)
+
+
+def _gen_email(full_name: str) -> str:
+    parts = full_name.lower().split()
+    first = parts[0] if parts else "user"
+    last  = parts[-1] if len(parts) > 1 else "user"
+    sep   = random.choice([".", "_", ""])
+    num   = random.randint(1, 999)
+    dom   = random.choice(_DOMAINS)
+    return f"{first}{sep}{last}{num}@{dom}"
 
 
 def _row(label: str, value: str, code: bool = False) -> str:
@@ -1005,20 +1041,27 @@ def get_country_info_text(match, use_arabic):
 
 
 def get_address_text(country_name, use_arabic=False):
-    addr  = get_random_address(country_name, use_arabic)
-    phone = CITY_DATA.get(country_name, {}).get("phone_code", addr.get("phone", "\u2014"))
+    addr        = get_random_address(country_name, use_arabic)
+    phone_code  = CITY_DATA.get(country_name, {}).get("phone_code", "+1")
+    phone       = addr.get("phone") or phone_code
+    full_name   = addr.get("full_name") or generate_full_name()
+    gender      = random.choice(_GENDERS)
+    email       = _gen_email(full_name)
+    flag        = _get_flag(country_name)
+    upper_name  = country_name.upper()
 
     lines = [
-        "    \U0001f4cd  <b>ADDRESS GEN</b>",
+        f"\U0001f4cd {upper_name} \u2014  Address {flag}",
         _SEP,
-        _row("Name",    addr.get("full_name") or "\u2014", code=True),
-        _row("Country", country_name),
-        _row("City",    addr.get("city")   or "\u2014", code=True),
-        _row("Street",  addr.get("street") or "\u2014", code=True),
-        _row("State",   addr.get("state")  or "\u2014"),
-        _row("ZIP",     addr.get("zip")    or "\u2014", code=True),
-        _row("Phone",   phone,                         code=True),
+        f"\U0001f194 Full Name: {full_name}",
+        f"\U0001f464 Gender: {gender}",
+        f"\U0001f3e0 Street Address: {addr.get('street') or '\u2014'}",
+        f"\U0001f3d9\ufe0f City/Town: {addr.get('city') or '\u2014'}",
+        f"\U0001f5fa\ufe0f State/Region: {addr.get('state') or '\u2014'}",
+        f"\U0001f4ee Postal Code: {addr.get('zip') or '\u2014'}",
+        f"\U0001f4de Phone Number: {phone}",
+        f"\U0001f4e7 Email: {email}",
+        f"\U0001f30d Country: {upper_name} {flag}",
         _SEP,
-        "    <i>" + _FOOT + "</i>",
     ]
     return "\n".join(lines)
