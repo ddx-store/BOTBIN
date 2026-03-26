@@ -94,10 +94,10 @@ class BinListUpdater:
 
     def __init__(
         self,
-        concurrency: int = 10,
-        delay_between_batches: float = 0.5,
-        max_retries: int = 2,
-        expand_radius: int = 3,
+        concurrency: int = 3,
+        delay_between_batches: float = 1.0,
+        max_retries: int = 1,
+        expand_radius: int = 0,
     ):
         self.concurrency           = concurrency
         self.delay_between_batches = delay_between_batches
@@ -183,7 +183,10 @@ class BinListUpdater:
         candidates = self._expand_ranges(known_bins)
 
         if not force:
-            candidates = [b for b in candidates if not get_bin_local(b)]
+            cached_check = await asyncio.gather(
+                *[asyncio.to_thread(get_bin_local, b) for b in candidates]
+            )
+            candidates = [b for b, hit in zip(candidates, cached_check) if not hit]
         candidates = list(set(candidates))
         random.shuffle(candidates)
 
@@ -226,19 +229,11 @@ class BinListUpdater:
     # ─── Internal helpers ─────────────────────────────────────────────────────
 
     def _load_known_bins(self) -> list[str]:
-        """Return all BINs from DB + the static seed list (deduplicated)."""
-        known = set(SEED_BINS)
-        try:
-            import sqlite3
-            from bot.database.bin_db import DB_PATH
-            con = sqlite3.connect(DB_PATH, timeout=5)
-            rows = con.execute("SELECT bin FROM bin_data").fetchall()
-            con.close()
-            for (b,) in rows:
-                known.add(b)
-        except Exception as e:
-            logger.warning(f"_load_known_bins DB error: {e}")
-        return list(known)
+        """Return the static seed list only.
+        DB bins are not included as candidates — they are already cached
+        and we do not want their count to inflate future update cycles.
+        """
+        return list(SEED_BINS)
 
     def _expand_ranges(self, known_bins: list[str]) -> list[str]:
         """
@@ -271,7 +266,7 @@ class BinListUpdater:
         async with self._semaphore:
             for attempt in range(self.max_retries):
                 try:
-                    existing = get_bin_local(bin_key)
+                    existing = await asyncio.to_thread(get_bin_local, bin_key)
                     if existing and not force:
                         return "skipped"
 
@@ -279,7 +274,7 @@ class BinListUpdater:
                     if not result:
                         return "failed"
 
-                    save_bin_local(bin_key, result)
+                    await asyncio.to_thread(save_bin_local, bin_key, result)
                     return "updated" if existing else "new"
 
                 except Exception as e:

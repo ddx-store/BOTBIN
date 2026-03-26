@@ -14,7 +14,7 @@ logger = get_logger("bin_scheduler")
 
 INTERVAL_H       = 24
 INTERVAL_S       = INTERVAL_H * 3600
-INITIAL_DELAY_S  = 90        # wait 90 s after bot start before first run
+INITIAL_DELAY_S  = 0        # no automatic startup run
 
 
 class BinUpdateScheduler:
@@ -34,10 +34,10 @@ class BinUpdateScheduler:
         self.interval_s      = interval_s
         self.initial_delay_s = initial_delay_s
         self.updater         = BinListUpdater(
-            concurrency            = 4,
-            delay_between_batches  = 0.7,
-            max_retries            = 2,
-            expand_radius          = 5,
+            concurrency            = 3,
+            delay_between_batches  = 1.2,
+            max_retries            = 1,
+            expand_radius          = 0,
         )
         self._task: asyncio.Task | None = None
         self._last_run: float | None    = None
@@ -51,8 +51,7 @@ class BinUpdateScheduler:
             return
         self._running = True
         self._task = asyncio.create_task(self._loop())
-        logger.info(f"BIN scheduler started (interval={self.interval_s//3600}h, "
-                    f"first run in {self.initial_delay_s}s)")
+        logger.info("BIN scheduler started (manual-only — use /updatebins to trigger)")
 
     def stop(self) -> None:
         """Cancel the background task gracefully."""
@@ -88,26 +87,15 @@ class BinUpdateScheduler:
     # ─── Internal loop ────────────────────────────────────────────────────────
 
     async def _loop(self) -> None:
+        """
+        No automatic scheduled runs.
+        BINs are cached on-demand via bin_lookup.py.
+        Admin can trigger manual update via /updatebins command.
+        """
         try:
-            logger.info(f"Waiting {self.initial_delay_s}s before first BIN update...")
-            await asyncio.sleep(self.initial_delay_s)
-
+            logger.info("BIN scheduler ready (manual-only mode).")
+            # Idle forever — manual updates are via run_now()
             while True:
-                try:
-                    stats = await self.updater.update_bins()
-                    self._last_run   = time.time()
-                    self._last_stats = stats
-                    logger.info(
-                        f"Scheduled BIN update complete: "
-                        f"+{stats['new']} new, "
-                        f"{stats['updated']} updated, "
-                        f"{stats['failed']} failed, "
-                        f"total={stats['total_db']} in {stats['duration_s']}s"
-                    )
-                except Exception as e:
-                    logger.error(f"BIN scheduler run error: {e}")
-
-                await asyncio.sleep(self.interval_s)
-
+                await asyncio.sleep(3600)
         except asyncio.CancelledError:
             logger.info("BIN scheduler task cancelled.")

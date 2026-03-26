@@ -1,6 +1,12 @@
 """
 Multi-source BIN data fetchers.
-Three independent API handlers with unified output schema.
+Two active API handlers with unified output schema.
+
+Sources:
+  1. binlist.net  — most detailed (bank city, URL, phone, currency)
+  2. handyapi.com — reliable fallback with CardTier level detection
+
+freebinlist.net was removed: DNS resolution fails in Replit environment.
 """
 
 import httpx
@@ -8,7 +14,7 @@ from bot.utils.logger import get_logger
 
 logger = get_logger("bin_sources")
 
-TIMEOUT = 6.0
+TIMEOUT = 3.0
 
 _LEVEL_KW = [
     ("infinite privilege",  "INFINITE PRIVILEGE"),
@@ -146,44 +152,14 @@ async def fetch_handyapi(bin_key: str, client: httpx.AsyncClient) -> dict | None
         return None
 
 
-# ─── Source 3: freebinlist.net ────────────────────────────────────────────────
-
-async def fetch_freebinlist(bin_key: str, client: httpx.AsyncClient) -> dict | None:
-    """Tertiary source — freebinlist.net. Has cardLevel field."""
-    try:
-        resp = await client.get(
-            f"https://www.freebinlist.net/api/bin/{bin_key}",
-            timeout=TIMEOUT,
-        )
-        if resp.status_code != 200:
-            return None
-        data = resp.json()
-        if not data.get("isValid"):
-            return None
-
-        cc = (data.get("binCountryCode") or "N/A")
-        return _normalize({
-            "scheme":       (data.get("binScheme") or "N/A").upper(),
-            "type":         (data.get("binType")   or "N/A").upper(),
-            "level":        _extract_level(data.get("cardLevel") or ""),
-            "bank":         data.get("bankName")    or "N/A",
-            "country":      data.get("binCountryName") or "N/A",
-            "country_code": cc,
-            "emoji":        _flag(cc),
-        }, source="freebinlist")
-    except Exception as e:
-        logger.debug(f"freebinlist {bin_key}: {e}")
-        return None
-
-
 # ─── Multi-source fetch ───────────────────────────────────────────────────────
 
 async def fetch_bin_any(bin_key: str, client: httpx.AsyncClient) -> dict | None:
     """
-    Try all three sources in priority order.
-    Returns the first successful result.
+    Try sources in priority order: binlist.net → handyapi.com.
+    Returns the first successful result with a valid scheme.
     """
-    for fetcher in (fetch_binlist, fetch_handyapi, fetch_freebinlist):
+    for fetcher in (fetch_binlist, fetch_handyapi):
         result = await fetcher(bin_key, client)
         if result and result.get("scheme") not in ("N/A", "", None):
             return result
