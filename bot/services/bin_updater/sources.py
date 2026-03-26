@@ -113,6 +113,52 @@ def _base_headers() -> dict:
     }
 
 
+# ─── Region map ───────────────────────────────────────────────────────────────
+# Maps ISO-3166 alpha-2 → broad geographic region for `issued_region` field.
+
+_REGION_MAP: dict[str, str] = {
+    # MENA
+    "SA": "MENA", "AE": "MENA", "KW": "MENA", "QA": "MENA", "BH": "MENA",
+    "OM": "MENA", "EG": "MENA", "JO": "MENA", "LB": "MENA", "MA": "MENA",
+    "TN": "MENA", "DZ": "MENA", "TR": "MENA", "IQ": "MENA", "SY": "MENA",
+    "YE": "MENA", "LY": "MENA", "PS": "MENA", "SD": "MENA",
+    # Europe
+    "GB": "Europe", "FR": "Europe", "DE": "Europe", "IT": "Europe",
+    "ES": "Europe", "NL": "Europe", "BE": "Europe", "CH": "Europe",
+    "SE": "Europe", "NO": "Europe", "PL": "Europe", "PT": "Europe",
+    "GR": "Europe", "RU": "Europe", "DK": "Europe", "FI": "Europe",
+    "AT": "Europe", "IE": "Europe", "CZ": "Europe", "RO": "Europe",
+    "HU": "Europe", "UA": "Europe", "HR": "Europe", "SK": "Europe",
+    "BG": "Europe", "RS": "Europe", "SI": "Europe", "LU": "Europe",
+    # North America
+    "US": "North America", "CA": "North America", "MX": "North America",
+    # South America
+    "BR": "South America", "AR": "South America", "CO": "South America",
+    "CL": "South America", "PE": "South America", "VE": "South America",
+    "EC": "South America", "UY": "South America", "PY": "South America",
+    # South Asia
+    "IN": "South Asia", "PK": "South Asia", "BD": "South Asia",
+    "LK": "South Asia", "NP": "South Asia",
+    # East Asia
+    "CN": "East Asia", "JP": "East Asia", "KR": "East Asia",
+    "TW": "East Asia", "HK": "East Asia", "MO": "East Asia",
+    # Southeast Asia
+    "SG": "Southeast Asia", "MY": "Southeast Asia", "TH": "Southeast Asia",
+    "ID": "Southeast Asia", "PH": "Southeast Asia", "VN": "Southeast Asia",
+    "MM": "Southeast Asia", "KH": "Southeast Asia", "LA": "Southeast Asia",
+    # Africa
+    "NG": "Africa", "ZA": "Africa", "KE": "Africa", "GH": "Africa",
+    "TZ": "Africa", "ET": "Africa", "UG": "Africa", "SN": "Africa",
+    "CI": "Africa", "CM": "Africa", "ZW": "Africa", "ZM": "Africa",
+    # Oceania
+    "AU": "Oceania", "NZ": "Oceania", "FJ": "Oceania",
+}
+
+
+def _get_region(country_code: str) -> str:
+    return _REGION_MAP.get((country_code or "").upper(), "N/A")
+
+
 # ─── Level extraction ─────────────────────────────────────────────────────────
 
 _LEVEL_KW = [
@@ -157,21 +203,24 @@ def _flag(code: str) -> str:
 def _normalize(d: dict, source: str) -> dict:
     cc = (d.get("country_code") or "N/A").upper()
     return {
-        "scheme":       (d.get("scheme")       or "N/A").upper(),
-        "type":         (d.get("type")         or "N/A").upper(),
-        "brand":        (d.get("brand") or d.get("scheme") or "N/A").upper(),
-        "level":        (d.get("level")        or "N/A").upper(),
-        "bank":         (d.get("bank")         or "N/A"),
-        "bank_city":    (d.get("bank_city")    or "N/A"),
-        "bank_url":     (d.get("bank_url")     or "N/A"),
-        "bank_phone":   (d.get("bank_phone")   or "N/A"),
-        "country":      (d.get("country")      or "N/A"),
-        "country_code": cc,
-        "currency":     (d.get("currency")     or "N/A"),
-        "card_length":  str(d.get("card_length") or "16"),
-        "emoji":        (d.get("emoji")        or _flag(cc)),
-        "prepaid":      d.get("prepaid"),
-        "source":       source,
+        "scheme":        (d.get("scheme")        or "N/A").upper(),
+        "type":          (d.get("type")          or "N/A").upper(),
+        "brand":         (d.get("brand") or d.get("scheme") or "N/A").upper(),
+        "level":         (d.get("level")         or "N/A").upper(),
+        "bank":          (d.get("bank")          or "N/A"),
+        "bank_city":     (d.get("bank_city")     or "N/A"),
+        "bank_url":      (d.get("bank_url")      or "N/A"),
+        "bank_phone":    (d.get("bank_phone")    or "N/A"),
+        "country":       (d.get("country")       or "N/A"),
+        "country_code":  cc,
+        "currency":      (d.get("currency")      or "N/A"),
+        "card_length":   str(d.get("card_length") or "16"),
+        "emoji":         (d.get("emoji")         or _flag(cc)),
+        "prepaid":       d.get("prepaid"),
+        "co_brand":      (d.get("co_brand")      or "N/A"),
+        "contactless":   d.get("contactless"),
+        "issued_region": _get_region(cc),
+        "source":        source,
     }
 
 

@@ -758,6 +758,467 @@ CITY_DATA = {
         "zip_format": "#####",
         "phone_code": "+39", "currency": "EUR", "continent": "Europe",
     },
+
+    # ── Europe (new) ──────────────────────────────────────────────────────────
+
+    "Netherlands": {
+        "cities": [
+            "Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven",
+            "Groningen", "Tilburg", "Almere", "Breda", "Nijmegen",
+            "Apeldoorn", "Haarlem", "Arnhem", "Zaanstad", "Amersfoort",
+            "Haarlemmermeer", "Enschede", "Zwolle", "Maastricht", "Leiden",
+        ],
+        "districts": [
+            "Jordaan", "De Pijp", "Oud-Zuid", "Centrum", "Noord",
+            "Oost", "West", "Buitenveldert", "Watergraafsmeer",
+            "Coolsingel", "Kop van Zuid", "Hillegersberg",
+            "Statenkwartier", "Laak", "Centrum Utrecht", "Oud-West",
+        ],
+        "streets": [
+            "Kalverstraat", "Damrak", "Herengracht", "Keizersgracht",
+            "Prinsengracht", "Nieuwendijk", "Leidsestraat", "Rokin",
+            "Coolsingel", "Blaak", "Lijnbaan", "Spuistraat",
+            "Vredenburg", "Lange Viestraat", "Oudegracht",
+        ],
+        "zip_format": "#### ??",
+        "phone_code": "+31", "currency": "EUR", "continent": "Europe",
+    },
+    "Sweden": {
+        "cities": [
+            "Stockholm", "Gothenburg", "Malmö", "Uppsala", "Västerås",
+            "Örebro", "Linköping", "Helsingborg", "Jönköping", "Norrköping",
+            "Lund", "Umeå", "Gävle", "Borås", "Södertälje",
+            "Eskilstuna", "Halmstad", "Växjö", "Karlstad", "Sundsvall",
+        ],
+        "districts": [
+            "Södermalm", "Östermalm", "Kungsholmen", "Vasastan", "Gamla Stan",
+            "Hisingen", "Majorna", "Linnéstaden", "Avenyn", "Mölndal",
+            "Husie", "Limhamn", "Huskvarna", "Råslätt",
+        ],
+        "streets": [
+            "Drottninggatan", "Strandvägen", "Kungsgatan", "Götgatan",
+            "Sveavägen", "Avenyn", "Linnégatan", "Hamngatan",
+            "Karlavägen", "Birger Jarlsgatan", "Norrmalmstorg",
+            "Fredsgatan", "Östra Hamngatan", "Kungsportsavenyn",
+        ],
+        "zip_format": "### ##",
+        "phone_code": "+46", "currency": "SEK", "continent": "Europe",
+    },
+    "Norway": {
+        "cities": [
+            "Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen",
+            "Fredrikstad", "Kristiansand", "Sandnes", "Tromsø", "Sarpsborg",
+            "Skien", "Ålesund", "Sandefjord", "Haugesund", "Tønsberg",
+            "Moss", "Porsgrunn", "Bodø", "Arendal", "Hamar",
+        ],
+        "districts": [
+            "Frogner", "Grünerløkka", "Majorstuen", "Bryggen", "Nordnes",
+            "Bergenhus", "Midtbyen", "Bakklandet", "Ilsvika", "Stavanger Sentrum",
+            "Hillevåg", "Hundvåg", "Sentrum Oslo", "Alna",
+        ],
+        "streets": [
+            "Karl Johans gate", "Storgata", "Bogstadveien", "Bryggen",
+            "Torggata", "Møllendalsveien", "Stranden", "Øvre Holmegate",
+            "Nedre Strandgate", "Kirkegata", "Søndre gate", "Kongens gate",
+        ],
+        "zip_format": "####",
+        "phone_code": "+47", "currency": "NOK", "continent": "Europe",
+    },
+    "Switzerland": {
+        "cities": [
+            "Zurich", "Geneva", "Basel", "Bern", "Lausanne",
+            "Lucerne", "St. Gallen", "Lugano", "Winterthur", "Biel",
+            "Thun", "Köniz", "La Chaux-de-Fonds", "Schaffhausen", "Fribourg",
+            "Chur", "Vernier", "Neuchâtel", "Uster", "Sion",
+        ],
+        "districts": [
+            "Kreis 1", "Langstrasse", "Enge", "Wiedikon", "Aussersihl",
+            "Eaux-Vives", "Jonction", "Plainpalais", "Carouge", "Pâquis",
+            "Grossbasel", "Kleinbasel", "Spalen", "Gundeldingen", "Matte",
+        ],
+        "streets": [
+            "Bahnhofstrasse", "Rue du Rhône", "Zähringerstrasse", "Marktgasse",
+            "Rennweg", "Limmatquai", "Löwenstrasse", "Augustinergasse",
+            "Rue de Rive", "Rue de la Corraterie", "Grand-Rue",
+            "Freiestrasse", "Militärstrasse", "Langgasse",
+        ],
+        "zip_format": "####",
+        "phone_code": "+41", "currency": "CHF", "continent": "Europe",
+    },
+    "Poland": {
+        "cities": [
+            "Warsaw", "Krakow", "Lodz", "Wroclaw", "Poznan",
+            "Gdansk", "Szczecin", "Bydgoszcz", "Lublin", "Katowice",
+            "Bialystok", "Gdynia", "Czestochowa", "Radom", "Sosnowiec",
+            "Torun", "Kielce", "Rzeszow", "Gliwice", "Zabrze",
+        ],
+        "districts": [
+            "Srodmiescie", "Praga", "Mokotow", "Wola", "Kazimierz",
+            "Podgorze", "Sroka", "Jeżyce", "Lazarz", "Dębniki",
+            "Dolny Sopot", "Wrzeszcz", "Oliwa", "Zaspa", "Chelm",
+        ],
+        "streets": [
+            "Nowy Swiat", "Marszalkowska", "Krakowskie Przedmiescie",
+            "Florianska", "Piotrkowska", "Dluga", "Dlug Targ",
+            "Ulica Grodzka", "Swietego Jana", "Pl. Rynek Glowny",
+            "Aleje Jerozolimskie", "Pulawska", "Aleje Ujazdowskie",
+        ],
+        "zip_format": "##-###",
+        "phone_code": "+48", "currency": "PLN", "continent": "Europe",
+    },
+    "Portugal": {
+        "cities": [
+            "Lisbon", "Porto", "Braga", "Coimbra", "Aveiro",
+            "Guimaraes", "Evora", "Funchal", "Viana do Castelo", "Setubal",
+            "Amadora", "Loures", "Almada", "Seixal", "Sintra",
+            "Vila Nova de Gaia", "Gondomar", "Matosinhos", "Cascais", "Oeiras",
+        ],
+        "districts": [
+            "Alfama", "Bairro Alto", "Baixa", "Mouraria", "Chiado",
+            "Ribeira", "Bonfim", "Cedofeita", "Arroios", "Estrela",
+            "Campolide", "Belem", "Parque das Nacoes", "Lapa",
+        ],
+        "streets": [
+            "Rua Augusta", "Avenida da Liberdade", "Rua do Ouro",
+            "Rua das Flores", "Av. dos Aliados", "Rua de Santa Catarina",
+            "Rua Garrett", "Largo do Chiado", "Rua do Carmo",
+            "Avenida de Roma", "Rua Rodrigues Sampaio",
+        ],
+        "zip_format": "####-###",
+        "phone_code": "+351", "currency": "EUR", "continent": "Europe",
+    },
+    "Greece": {
+        "cities": [
+            "Athens", "Thessaloniki", "Patras", "Heraklion", "Larissa",
+            "Volos", "Rhodes", "Ioannina", "Kavala", "Chania",
+            "Chalcis", "Agrinio", "Katerini", "Serres", "Lamia",
+            "Xanthi", "Piraeus", "Peristeri", "Kallithea", "Nikaia",
+        ],
+        "districts": [
+            "Syntagma", "Monastiraki", "Plaka", "Kolonaki", "Exarcheia",
+            "Ladadika", "Ano Poli", "Kalamaria", "Triandria",
+            "Ampelokipoi", "Zografou", "Galatsi", "Ilion",
+        ],
+        "streets": [
+            "Ermou", "Stadiou", "Kifissias", "Voukourestiou",
+            "Tsimiski", "Egnatia", "Aristotelous", "Mitropoleos",
+            "Venizelos", "Ag. Dimitriou", "Leoforos Alexandras",
+            "Leoforos Vas. Sofias", "Pireos", "Acharnon",
+        ],
+        "zip_format": "### ##",
+        "phone_code": "+30", "currency": "EUR", "continent": "Europe",
+    },
+    "Belgium": {
+        "cities": [
+            "Brussels", "Antwerp", "Ghent", "Bruges", "Liege",
+            "Namur", "Leuven", "Charleroi", "Mechelen", "Aalst",
+            "La Louviere", "Kortrijk", "Hasselt", "Sint-Niklaas", "Mons",
+            "Genk", "Ostend", "Roeselare", "Tournai", "Verviers",
+        ],
+        "districts": [
+            "Ixelles", "Schaerbeek", "Molenbeek", "Uccle", "Borgerhout",
+            "Berchem", "Patershol", "Dampoort", "Seef", "Het Eilandje",
+            "Laeken", "Anderlecht", "Etterbeek", "Woluwe-Saint-Lambert",
+        ],
+        "streets": [
+            "Rue Neuve", "Avenue Louise", "Meir", "Veldstraat",
+            "Sint-Pietersnieuwstraat", "Place Royale", "Rue de la Loi",
+            "Boulevard Anspach", "Rue du Midi", "Chaussee de Waterloo",
+            "Rue Sainte-Catherine", "Place de Brouckere",
+        ],
+        "zip_format": "####",
+        "phone_code": "+32", "currency": "EUR", "continent": "Europe",
+    },
+
+    # ── Asia (new) ────────────────────────────────────────────────────────────
+
+    "Indonesia": {
+        "cities": [
+            "Jakarta", "Surabaya", "Bandung", "Medan", "Bekasi",
+            "Tangerang", "Makassar", "Semarang", "Depok", "Palembang",
+            "South Tangerang", "Batam", "Pekanbaru", "Bandar Lampung", "Bogor",
+            "Padang", "Malang", "Denpasar", "Samarinda", "Balikpapan",
+        ],
+        "districts": [
+            "Menteng", "Kemang", "Sudirman", "Kota Tua", "Rungkut",
+            "Tegallega", "Dago", "Tampan", "Medan Baru", "Sawah Besar",
+            "Tebet", "Pancoran", "Kebayoran Baru", "Senayan", "Tanah Abang",
+        ],
+        "streets": [
+            "Jl. Sudirman", "Jl. Thamrin", "Jl. Gatot Subroto",
+            "Jl. HR Rasuna Said", "Jl. Basuki Rahmat", "Jl. Pemuda",
+            "Jl. Raya Bogor", "Jl. Gajah Mada", "Jl. Hayam Wuruk",
+            "Jl. Diponegoro", "Jl. Ahmad Yani", "Jl. Imam Bonjol",
+        ],
+        "zip_format": "#####",
+        "phone_code": "+62", "currency": "IDR", "continent": "Asia",
+    },
+    "Pakistan": {
+        "cities": [
+            "Karachi", "Lahore", "Faisalabad", "Rawalpindi", "Islamabad",
+            "Multan", "Gujranwala", "Hyderabad", "Peshawar", "Quetta",
+            "Sialkot", "Bahawalpur", "Sargodha", "Sukkur", "Larkana",
+            "Rahim Yar Khan", "Abbottabad", "Mirpur", "Sheikhupura", "Jhang",
+        ],
+        "districts": [
+            "DHA", "Gulshan", "PECHS", "Model Town", "Gulberg",
+            "Johar Town", "F-6", "F-7", "G-10", "Hayatabad",
+            "Saddar", "Clifton", "Bath Island", "Defence", "Bahria Town",
+        ],
+        "streets": [
+            "Sharae Faisal", "Mall Road", "Main Boulevard", "Constitution Avenue",
+            "Jinnah Avenue", "Shahrah-e-Quaid-e-Azam", "MM Alam Road",
+            "Jail Road", "Canal Road", "GT Road", "Bannu Road",
+        ],
+        "zip_format": "#####",
+        "phone_code": "+92", "currency": "PKR", "continent": "Asia",
+    },
+    "Thailand": {
+        "cities": [
+            "Bangkok", "Chiang Mai", "Phuket", "Pattaya", "Khon Kaen",
+            "Chiang Rai", "Nakhon Ratchasima", "Hat Yai", "Udon Thani",
+            "Nakhon Si Thammarat", "Pak Kret", "Rayong", "Chonburi",
+            "Nonthaburi", "Pathum Thani", "Samut Prakan", "Ayutthaya",
+        ],
+        "districts": [
+            "Silom", "Sukhumvit", "Siam", "Ratchada", "Nimman",
+            "Old City Chiang Mai", "Kathu", "Wichit", "Bang Rak",
+            "Sathon", "Phaya Thai", "Din Daeng", "Huai Khwang",
+        ],
+        "streets": [
+            "Silom Road", "Sukhumvit Road", "Ratchadamri Road",
+            "Rama IV Road", "Nimman Road", "Tha Phae Road",
+            "Charoen Krung Road", "Yaowarat Road", "Ratchaprasong",
+            "Phetchaburi Road", "Lat Phrao Road", "Vibhavadi Rangsit",
+        ],
+        "zip_format": "#####",
+        "phone_code": "+66", "currency": "THB", "continent": "Asia",
+    },
+    "Singapore": {
+        "cities": [
+            "Singapore", "Jurong East", "Tampines", "Woodlands", "Bedok",
+            "Ang Mo Kio", "Toa Payoh", "Bishan", "Clementi", "Punggol",
+            "Sengkang", "Hougang", "Yishun", "Buona Vista", "Novena",
+        ],
+        "districts": [
+            "Orchard", "Marina Bay", "Raffles Place", "Tanjong Pagar",
+            "Bugis", "Little India", "Chinatown", "Jurong", "Kallang",
+            "Pasir Ris", "Serangoon", "Geylang", "Queenstown",
+        ],
+        "streets": [
+            "Orchard Road", "Marina Boulevard", "South Bridge Road",
+            "North Bridge Road", "Victoria Street", "Bras Basah Road",
+            "Bencoolen Street", "Serangoon Road", "Rochor Road",
+            "Jalan Besar", "Bukit Timah Road", "Upper Bukit Timah Road",
+        ],
+        "zip_format": "######",
+        "phone_code": "+65", "currency": "SGD", "continent": "Asia",
+    },
+    "Malaysia": {
+        "cities": [
+            "Kuala Lumpur", "Penang", "Johor Bahru", "Kota Kinabalu",
+            "Kuching", "Ipoh", "Shah Alam", "Petaling Jaya", "Subang Jaya",
+            "Klang", "Ampang Jaya", "Seremban", "Kota Bharu", "Kuala Terengganu",
+            "Alor Setar", "Miri", "Sibu", "Sandakan", "Tawau",
+        ],
+        "districts": [
+            "KLCC", "Bukit Bintang", "Chow Kit", "Bangsar", "Georgetown",
+            "Komtar", "JB City Centre", "Gurney Drive", "Desa ParkCity",
+            "Mont Kiara", "Damansara", "Puchong", "Cheras",
+        ],
+        "streets": [
+            "Jalan Bukit Bintang", "Jalan Ampang", "Jalan Tuanku Abdul Halim",
+            "Lebuh Pantai", "Jalan Gombak", "Jalan Ipoh", "Jalan Duta",
+            "Jalan Pudu", "Jalan Raja Laut", "Jalan Hang Tuah",
+        ],
+        "zip_format": "#####",
+        "phone_code": "+60", "currency": "MYR", "continent": "Asia",
+    },
+    "Philippines": {
+        "cities": [
+            "Manila", "Quezon City", "Davao", "Cebu City", "Zamboanga",
+            "Antipolo", "Taguig", "Caloocan", "Pasig", "Valenzuela",
+            "Las Pinas", "Paranaque", "Bacoor", "Muntinlupa", "Makati",
+            "Dasmariñas", "Cagayan de Oro", "General Santos", "Bacolod",
+        ],
+        "districts": [
+            "BGC", "Makati CBD", "Ortigas", "Binondo", "Malate",
+            "IT Park", "Lahug", "Lanang", "Paco", "Ermita",
+            "Poblacion", "Cubao", "Eastwood", "Bonifacio Global City",
+        ],
+        "streets": [
+            "EDSA", "Roxas Boulevard", "Ayala Avenue", "Ortigas Avenue",
+            "Commonwealth Avenue", "N. Domingo St", "Marcos Highway",
+            "Shaw Boulevard", "Quezon Avenue", "Mabini Street",
+        ],
+        "zip_format": "####",
+        "phone_code": "+63", "currency": "PHP", "continent": "Asia",
+    },
+    "Vietnam": {
+        "cities": [
+            "Hanoi", "Ho Chi Minh City", "Da Nang", "Nha Trang",
+            "Hoi An", "Hai Phong", "Can Tho", "Hue", "Vung Tau",
+            "Bien Hoa", "Thu Dau Mot", "Buon Ma Thuot", "Rach Gia",
+            "Long Xuyen", "Quy Nhon", "Phan Thiet", "My Tho",
+        ],
+        "districts": [
+            "Ba Dinh", "Hoan Kiem", "Dong Da", "Hai Ba Trung",
+            "Quan 1", "Quan 3", "Son Tra", "Ngu Hanh Son",
+            "Thanh Khe", "Cam Le", "Binh Thanh", "Tan Binh", "Phu Nhuan",
+        ],
+        "streets": [
+            "Ho Guom", "Nguyen Hue", "Le Loi", "Tran Phu",
+            "Nguyen Van Linh", "Bach Dang", "Phan Chu Trinh",
+            "Tran Hung Dao", "Dinh Tien Hoang", "Hang Bai",
+        ],
+        "zip_format": "######",
+        "phone_code": "+84", "currency": "VND", "continent": "Asia",
+    },
+
+    # ── Africa (new) ──────────────────────────────────────────────────────────
+
+    "Nigeria": {
+        "cities": [
+            "Lagos", "Abuja", "Kano", "Ibadan", "Port Harcourt",
+            "Benin City", "Maiduguri", "Zaria", "Aba", "Jos",
+            "Ilorin", "Onitsha", "Warri", "Abeokuta", "Enugu",
+            "Owerri", "Kaduna", "Uyo", "Akure", "Yola",
+        ],
+        "districts": [
+            "Victoria Island", "Lekki", "Ikeja", "Garki", "Wuse",
+            "Maitama", "Sabon Gari", "Bodija", "Trans-Amadi", "GRA",
+            "Asaba", "New Haven", "Independence Layout", "Aba Road",
+        ],
+        "streets": [
+            "Broad Street", "Ahmadu Bello Way", "Herbert Macaulay Way",
+            "Adeola Odeku", "Wuse Market Road", "Adetokunbo Ademola",
+            "Ozumba Mbadiwe", "Bourdillon Road", "Awolowo Road",
+            "Kingsway Road", "Nnamdi Azikiwe Road",
+        ],
+        "zip_format": "######",
+        "phone_code": "+234", "currency": "NGN", "continent": "Africa",
+    },
+    "South Africa": {
+        "cities": [
+            "Johannesburg", "Cape Town", "Durban", "Pretoria",
+            "Port Elizabeth", "Bloemfontein", "Nelspruit", "East London",
+            "Polokwane", "Kimberley", "Pietermaritzburg", "Rustenburg",
+            "Witbank", "George", "Richards Bay", "Vanderbijlpark",
+        ],
+        "districts": [
+            "Sandton", "Rosebank", "Waterfront", "De Waterkant",
+            "Umhlanga", "Hatfield", "Arcadia", "Melville",
+            "Camps Bay", "Green Point", "Sea Point", "Bo-Kaap",
+        ],
+        "streets": [
+            "Nelson Mandela Square", "Long Street", "Adderley Street",
+            "Commissioner Street", "Rivonia Road", "Jan Smuts Avenue",
+            "William Nicol Drive", "Buitenkant Street", "Bree Street",
+            "Loop Street", "Kloof Street", "De Waal Drive",
+        ],
+        "zip_format": "####",
+        "phone_code": "+27", "currency": "ZAR", "continent": "Africa",
+    },
+    "Kenya": {
+        "cities": [
+            "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret",
+            "Thika", "Malindi", "Kitale", "Garissa", "Kisii",
+            "Nyeri", "Meru", "Kericho", "Embu", "Bungoma",
+        ],
+        "districts": [
+            "Westlands", "Karen", "Kilimani", "CBD", "Nyali",
+            "Mombasa Old Town", "Milimani", "Annex", "Upper Hill",
+            "Lavington", "Kileleshwa", "Lang'ata", "Rongai",
+        ],
+        "streets": [
+            "Uhuru Highway", "Kenyatta Avenue", "Moi Avenue",
+            "Haile Selassie Avenue", "Mama Ngina Street", "Tom Mboya Street",
+            "Oginga Odinga Road", "Kimathi Street", "Biashara Street",
+        ],
+        "zip_format": "#####",
+        "phone_code": "+254", "currency": "KES", "continent": "Africa",
+    },
+
+    # ── Latin America (new) ───────────────────────────────────────────────────
+
+    "Argentina": {
+        "cities": [
+            "Buenos Aires", "Cordoba", "Rosario", "Mendoza", "La Plata",
+            "Mar del Plata", "San Juan", "Tucuman", "Salta", "Resistencia",
+            "Neuquen", "Santa Fe", "Corrientes", "San Luis", "Posadas",
+            "San Salvador de Jujuy", "Formosa", "San Rafael", "Bahia Blanca",
+        ],
+        "districts": [
+            "Palermo", "San Telmo", "Recoleta", "Belgrano", "Puerto Madero",
+            "Barrio Norte", "Nueva Cordoba", "Guemes", "Villa Crespo",
+            "Caballito", "Almagro", "Colegiales", "Chacarita",
+        ],
+        "streets": [
+            "Av. Corrientes", "Av. 9 de Julio", "Florida", "Av. Santa Fe",
+            "Av. Rivadavia", "Av. Callao", "Av. Libertador", "Av. del Libertador",
+            "Av. Cabildo", "Av. Scalabrini Ortiz", "Thames",
+        ],
+        "zip_format": "#####",
+        "phone_code": "+54", "currency": "ARS", "continent": "South America",
+    },
+    "Colombia": {
+        "cities": [
+            "Bogota", "Medellin", "Cali", "Barranquilla", "Cartagena",
+            "Bucaramanga", "Manizales", "Pereira", "Cucuta", "Ibague",
+            "Santa Marta", "Villavicencio", "Pasto", "Monteria", "Armenia",
+            "Valledupar", "Neiva", "Sincelejo", "Popayan", "Tunja",
+        ],
+        "districts": [
+            "El Poblado", "Laureles", "Chapinero", "Usaquen", "La Candelaria",
+            "El Centro", "Getsemani", "Bocagrande", "Manga", "Pie de la Popa",
+            "La Quinta", "El Prado", "Los Alpes",
+        ],
+        "streets": [
+            "Carrera 7", "Av. El Poblado", "Calle 72", "Carrera 15",
+            "El Malecon", "Av. El Lago", "Calle 100", "Carrera 11",
+            "Transversal 23", "Calle 26", "Av. NQS",
+        ],
+        "zip_format": "######",
+        "phone_code": "+57", "currency": "COP", "continent": "South America",
+    },
+    "Chile": {
+        "cities": [
+            "Santiago", "Valparaiso", "Concepcion", "La Serena", "Antofagasta",
+            "Temuco", "Rancagua", "Talca", "Arica", "Iquique",
+            "Puerto Montt", "Chillan", "Calama", "Osorno", "Copiapo",
+        ],
+        "districts": [
+            "Providencia", "Miraflores", "Nunoa", "Las Condes", "Vina del Mar",
+            "Barrio Italia", "San Miguel", "Santiago Centro", "Recoleta",
+            "Vitacura", "Lo Barnechea", "Maipu", "La Florida",
+        ],
+        "streets": [
+            "Av. Providencia", "Av. Apoquindo", "Paseo Ahumada",
+            "Av. Libertador B. O'Higgins", "Cerro Alegre", "Av. Nueva Providencia",
+            "Merced", "Teatinos", "Monjitas", "Huerfanos",
+        ],
+        "zip_format": "#######",
+        "phone_code": "+56", "currency": "CLP", "continent": "South America",
+    },
+    "Peru": {
+        "cities": [
+            "Lima", "Arequipa", "Trujillo", "Cusco", "Chiclayo",
+            "Iquitos", "Piura", "Huancayo", "Tacna", "Chimbote",
+            "Pucallpa", "Juliaca", "Cajamarca", "Ayacucho", "Huanuco",
+        ],
+        "districts": [
+            "Miraflores", "San Isidro", "Barranco", "Lince", "Cayma",
+            "Yanahuara", "El Centro Historico", "Surco", "La Molina",
+            "Jesus Maria", "San Borja", "Pueblo Libre", "Magdalena",
+        ],
+        "streets": [
+            "Av. Larco", "Malecon de la Reserva", "Jiron de la Union",
+            "Av. Arequipa", "Mariscal Benavides", "Av. El Sol",
+            "Av. Jose Pardo", "Calle Schell", "Ovalo Gutiérrez",
+        ],
+        "zip_format": "#####",
+        "phone_code": "+51", "currency": "PEN", "continent": "South America",
+    },
 }
 
 GLOBAL_STREETS = ["Main St", "High St", "Park Ave", "Second St", "Broadway", "Oak St", "Maple Ave", "Victoria Rd"]
@@ -802,6 +1263,28 @@ ENGLISH_ALIASES = {
     "uae": "united arab emirates", "emirates": "united arab emirates",
     "ksa": "saudi arabia", "saudi": "saudi arabia",
     "korea": "south korea", "sk": "south korea",
+    "nl": "netherlands", "holland": "netherlands",
+    "se": "sweden",
+    "no": "norway",
+    "ch": "switzerland",
+    "pl": "poland",
+    "pt": "portugal",
+    "gr": "greece",
+    "be": "belgium",
+    "id": "indonesia",
+    "pk": "pakistan",
+    "th": "thailand",
+    "sg": "singapore",
+    "my": "malaysia",
+    "ph": "philippines",
+    "vn": "vietnam",
+    "ng": "nigeria",
+    "za": "south africa",
+    "ke": "kenya",
+    "ar": "argentina",
+    "co": "colombia",
+    "cl": "chile",
+    "pe": "peru",
 }
 
 FIRST_NAMES_MALE = [
@@ -910,6 +1393,32 @@ _PHONE_FORMATS = {
     "+52":  lambda: f"+52 1 {random.randint(55,99)}{random.randint(10000000,99999999)}",
     "+34":  lambda: f"+34 6{random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)}",
     "+39":  lambda: f"+39 3{random.randint(20,99)} {random.randint(100,999)} {random.randint(1000,9999)}",
+    # New Europe
+    "+31":  lambda: f"+31 6 {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)}",
+    "+46":  lambda: f"+46 7{random.choice(['0','2','3','6','9'])} {random.randint(100,999)} {random.randint(10,99)} {random.randint(10,99)}",
+    "+47":  lambda: f"+47 {random.choice(['4','9'])}{random.randint(10000000,99999999)}",
+    "+41":  lambda: f"+41 7{random.choice(['5','6','7','8','9'])} {random.randint(100,999)} {random.randint(10,99)} {random.randint(10,99)}",
+    "+48":  lambda: f"+48 {random.choice(['5','6','7','8'])}1{random.randint(1000000,9999999)}",
+    "+351": lambda: f"+351 9{random.choice(['1','2','3','6'])} {random.randint(100,999)} {random.randint(1000,9999)}",
+    "+30":  lambda: f"+30 6{random.choice(['9','8','7'])}{random.randint(10000000,99999999)}",
+    "+32":  lambda: f"+32 4{random.choice(['5','6','7','8','9'])}{random.randint(1000000,9999999)}",
+    # New Asia
+    "+62":  lambda: f"+62 8{random.choice(['1','5','6','7','8','9'])}{random.randint(10000000,99999999)}",
+    "+92":  lambda: f"+92 3{random.choice(['0','1','2','3','4','5'])}{random.randint(10000000,99999999)}",
+    "+66":  lambda: f"+66 {random.choice(['06','08','09'])}{random.randint(10000000,99999999)}",
+    "+65":  lambda: f"+65 {random.choice(['8','9'])}{random.randint(1000000,9999999)}",
+    "+60":  lambda: f"+60 1{random.choice(['1','2','3','4','5','6','7','8','9'])}{random.randint(1000000,9999999)}",
+    "+63":  lambda: f"+63 9{random.choice(['1','2','3','4','5','6','7','8','9'])}{random.randint(100000000,999999999)}",
+    "+84":  lambda: f"+84 {random.choice(['03','07','08','09'])}{random.randint(10000000,99999999)}",
+    # New Africa
+    "+234": lambda: f"+234 {random.choice(['070','080','090','081','091'])}{random.randint(10000000,99999999)}",
+    "+27":  lambda: f"+27 {random.choice(['6','7','8'])}{random.randint(10000000,99999999)}",
+    "+254": lambda: f"+254 7{random.choice(['0','1','2','3','4','5','6','7','8','9'])}{random.randint(1000000,9999999)}",
+    # New Latin America
+    "+54":  lambda: f"+54 9 {random.choice(['11','351','341','261'])}-{random.randint(1000,9999)}-{random.randint(1000,9999)}",
+    "+57":  lambda: f"+57 3{random.choice(['0','1','2','3','5'])}{random.randint(10000000,99999999)}",
+    "+56":  lambda: f"+56 9 {random.randint(1000,9999)} {random.randint(1000,9999)}",
+    "+51":  lambda: f"+51 9{random.randint(10000000,99999999)}",
 }
 
 
@@ -1019,6 +1528,13 @@ _COUNTRY_CODES = {
     "Russia": "RU", "Saudi Arabia": "SA", "South Korea": "KR",
     "Spain": "ES", "Tunisia": "TN", "Turkey": "TR",
     "United Arab Emirates": "AE", "United Kingdom": "GB", "United States": "US",
+    # New countries
+    "Netherlands": "NL", "Sweden": "SE", "Norway": "NO", "Switzerland": "CH",
+    "Poland": "PL", "Portugal": "PT", "Greece": "GR", "Belgium": "BE",
+    "Indonesia": "ID", "Pakistan": "PK", "Thailand": "TH", "Singapore": "SG",
+    "Malaysia": "MY", "Philippines": "PH", "Vietnam": "VN",
+    "Nigeria": "NG", "South Africa": "ZA", "Kenya": "KE",
+    "Argentina": "AR", "Colombia": "CO", "Chile": "CL", "Peru": "PE",
 }
 
 _GENDERS = ["Male", "Female"]

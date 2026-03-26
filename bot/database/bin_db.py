@@ -20,12 +20,15 @@ DB_PATH  = os.path.join("data", "bin_cache.db")
 os.makedirs("data", exist_ok=True)
 
 _EXTRA_COLS = [
-    ("bank_city",   "TEXT DEFAULT 'N/A'"),
-    ("bank_url",    "TEXT DEFAULT 'N/A'"),
-    ("bank_phone",  "TEXT DEFAULT 'N/A'"),
-    ("currency",    "TEXT DEFAULT 'N/A'"),
-    ("card_length", "TEXT DEFAULT 'N/A'"),
-    ("source",      "TEXT DEFAULT 'unknown'"),
+    ("bank_city",     "TEXT DEFAULT 'N/A'"),
+    ("bank_url",      "TEXT DEFAULT 'N/A'"),
+    ("bank_phone",    "TEXT DEFAULT 'N/A'"),
+    ("currency",      "TEXT DEFAULT 'N/A'"),
+    ("card_length",   "TEXT DEFAULT 'N/A'"),
+    ("source",        "TEXT DEFAULT 'unknown'"),
+    ("co_brand",      "TEXT DEFAULT 'N/A'"),
+    ("contactless",   "INTEGER DEFAULT NULL"),
+    ("issued_region", "TEXT DEFAULT 'N/A'"),
 ]
 
 

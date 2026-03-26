@@ -49,9 +49,11 @@ telegram-bot/
 
 - **Runtime**: Python 3.12
 - **Framework**: python-telegram-bot 21.0.1
-- **Database**: PostgreSQL (users/stats) + SQLite (BIN cache, 6+ new columns)
-- **BIN Sources**: binlist.net → handyapi.com → freebinlist.net → range detection
-- **Auto-Update**: BIN DB refreshes every 24h in background (starts 90s after boot)
+- **Database**: PostgreSQL (users/stats) + SQLite (BIN cache, WAL+indexes, 9 columns)
+- **BIN Sources**: binlist.net → handyapi.com → bintable.com (circuit breaker per source)
+- **BIN Update**: Manual-only via `/updatebins`; `update_stale_bins()` for targeted refresh
+- **Countries**: 51 countries across 6 regions (CITY_DATA) with cities/districts/streets/zip/phone
+- **SEED_BINS**: 696 unique BINs covering Gulf/MENA, Europe, Asia, LatAm, Africa
 
 ## Required Environment Secrets
 
