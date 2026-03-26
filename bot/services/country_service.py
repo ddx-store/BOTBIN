@@ -152,7 +152,7 @@ CITY_DATA = {
             "شارع المنامة", "طريق بوداية", "شارع المطار",
             "طريق عالي", "شارع اليتيم", "شارع الحكومة",
         ],
-        "zip_format": "#####",
+        "zip_format": "####",
         "phone_code": "+973", "currency": "BHD", "continent": "Asia",
     },
     "Oman": {
@@ -881,11 +881,46 @@ def generate_zip(fmt):
     return res
 
 
+_PHONE_FORMATS = {
+    "+1":   lambda: f"+1 ({random.randint(200,999)}) {random.randint(200,999)}-{random.randint(1000,9999)}",
+    "+44":  lambda: f"+44 7{random.randint(100,999)} {random.randint(100,999)} {random.randint(100,999)}",
+    "+966": lambda: f"+966 5{random.randint(0,9)} {random.randint(100,999)} {random.randint(1000,9999)}",
+    "+971": lambda: f"+971 5{random.randint(0,9)} {random.randint(100,999)} {random.randint(1000,9999)}",
+    "+20":  lambda: f"+20 1{random.choice(['0','1','2','5'])}{random.randint(10000000,99999999)}",
+    "+965": lambda: f"+965 {random.choice(['5','6','9'])}{random.randint(1000000,9999999)}",
+    "+974": lambda: f"+974 {random.choice(['3','5','6','7'])}{random.randint(100000,999999)}",
+    "+973": lambda: f"+973 3{random.randint(1000000,9999999)}",
+    "+968": lambda: f"+968 {random.choice(['7','9'])}{random.randint(1000000,9999999)}",
+    "+962": lambda: f"+962 7{random.randint(0,9)} {random.randint(100,999)} {random.randint(1000,9999)}",
+    "+964": lambda: f"+964 7{random.randint(10,99)} {random.randint(100,999)} {random.randint(1000,9999)}",
+    "+961": lambda: f"+961 {random.choice(['3','70','71','76','78','79'])}{random.randint(100000,999999)}",
+    "+212": lambda: f"+212 6{random.randint(10000000,99999999)}",
+    "+213": lambda: f"+213 {random.choice(['5','6','7'])}{random.randint(10000000,99999999)}",
+    "+216": lambda: f"+216 {random.choice(['2','5','9'])}{random.randint(1000000,9999999)}",
+    "+33":  lambda: f"+33 6 {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)}",
+    "+49":  lambda: f"+49 1{random.randint(50,79)} {random.randint(1000000,9999999)}",
+    "+90":  lambda: f"+90 5{random.randint(10,59)} {random.randint(100,999)} {random.randint(1000,9999)}",
+    "+91":  lambda: f"+91 {random.choice(['7','8','9'])}{random.randint(100000000,999999999)}",
+    "+86":  lambda: f"+86 1{random.randint(30,99)} {random.randint(1000,9999)} {random.randint(1000,9999)}",
+    "+81":  lambda: f"+81 {random.choice(['70','80','90'])}-{random.randint(1000,9999)}-{random.randint(1000,9999)}",
+    "+55":  lambda: f"+55 {random.randint(11,99)} 9{random.randint(1000,9999)}-{random.randint(1000,9999)}",
+    "+61":  lambda: f"+61 4{random.randint(10,99)} {random.randint(100,999)} {random.randint(100,999)}",
+    "+7":   lambda: f"+7 9{random.randint(10,99)} {random.randint(100,999)}-{random.randint(10,99)}-{random.randint(10,99)}",
+    "+82":  lambda: f"+82-10-{random.randint(1000,9999)}{random.randint(100,9999)}",
+    "+52":  lambda: f"+52 1 {random.randint(55,99)}{random.randint(10000000,99999999)}",
+    "+34":  lambda: f"+34 6{random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)}",
+    "+39":  lambda: f"+39 3{random.randint(20,99)} {random.randint(100,999)} {random.randint(1000,9999)}",
+}
+
+
 def generate_phone(phone_code):
     if not phone_code:
         phone_code = "+1"
-    digits = "".join(str(random.randint(0, 9)) for _ in range(7))
-    return f"{phone_code} {digits[:3]}-{digits[3:]}"
+    fmt = _PHONE_FORMATS.get(phone_code)
+    if fmt:
+        return fmt()
+    digits = "".join(str(random.randint(0, 9)) for _ in range(8))
+    return f"{phone_code} {digits[:4]}-{digits[4:]}"
 
 
 def generate_full_name():
