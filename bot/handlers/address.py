@@ -55,5 +55,11 @@ async def address_regen_callback(query, user):
     keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=f"addr_{country_name}")]]
     try:
         await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
-    except Exception:
-        pass
+    except Exception as e:
+        err = str(e).lower()
+        if "message is not modified" not in err:
+            try:
+                await query.message.delete()
+            except Exception:
+                pass
+            await query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))

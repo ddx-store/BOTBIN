@@ -11,37 +11,40 @@ from bot.services.country_service import (
     FIRST_NAMES_MALE, FIRST_NAMES_FEMALE, LAST_NAMES,
     generate_zip, CITY_DATA,
 )
+from bot.utils.logger import get_logger
+
+logger = get_logger("fake")
 
 COUNTRY_MAP = {
-    "us": "United States", "usa": "United States", "america": "United States",
-    "uk": "United Kingdom", "gb": "United Kingdom", "britain": "United Kingdom",
-    "sa": "Saudi Arabia",   "ksa": "Saudi Arabia",  "saudi": "Saudi Arabia",
+    "us": "United States",   "usa": "United States",   "america": "United States",
+    "uk": "United Kingdom",  "gb": "United Kingdom",   "britain": "United Kingdom",
+    "sa": "Saudi Arabia",    "ksa": "Saudi Arabia",    "saudi": "Saudi Arabia",
     "ae": "United Arab Emirates", "uae": "United Arab Emirates", "emirates": "United Arab Emirates",
-    "eg": "Egypt",          "egypt": "Egypt",
-    "kw": "Kuwait",         "kuwait": "Kuwait",
-    "qa": "Qatar",          "qatar": "Qatar",
-    "bh": "Bahrain",        "bahrain": "Bahrain",
-    "om": "Oman",           "oman": "Oman",
-    "jo": "Jordan",         "jordan": "Jordan",
-    "iq": "Iraq",           "iraq": "Iraq",
-    "lb": "Lebanon",        "lebanon": "Lebanon",
-    "ma": "Morocco",        "morocco": "Morocco",
-    "dz": "Algeria",        "algeria": "Algeria",
-    "tn": "Tunisia",        "tunisia": "Tunisia",
-    "fr": "France",         "france": "France",
-    "de": "Germany",        "germany": "Germany",
-    "tr": "Turkey",         "turkey": "Turkey",
-    "in": "India",          "india": "India",
-    "cn": "China",          "china": "China",
-    "jp": "Japan",          "japan": "Japan",
-    "br": "Brazil",         "brazil": "Brazil",
-    "ca": "Canada",         "canada": "Canada",
-    "au": "Australia",      "australia": "Australia",
-    "ru": "Russia",         "russia": "Russia",
-    "kr": "South Korea",    "korea": "South Korea",
-    "mx": "Mexico",         "mexico": "Mexico",
-    "es": "Spain",          "spain": "Spain",
-    "it": "Italy",          "italy": "Italy",
+    "eg": "Egypt",           "egypt": "Egypt",
+    "kw": "Kuwait",          "kuwait": "Kuwait",
+    "qa": "Qatar",           "qatar": "Qatar",
+    "bh": "Bahrain",         "bahrain": "Bahrain",
+    "om": "Oman",            "oman": "Oman",
+    "jo": "Jordan",          "jordan": "Jordan",
+    "iq": "Iraq",            "iraq": "Iraq",
+    "lb": "Lebanon",         "lebanon": "Lebanon",
+    "ma": "Morocco",         "morocco": "Morocco",
+    "dz": "Algeria",         "algeria": "Algeria",
+    "tn": "Tunisia",         "tunisia": "Tunisia",
+    "fr": "France",          "france": "France",
+    "de": "Germany",         "germany": "Germany",
+    "tr": "Turkey",          "turkey": "Turkey",
+    "in": "India",           "india": "India",
+    "cn": "China",           "china": "China",
+    "jp": "Japan",           "japan": "Japan",
+    "br": "Brazil",          "brazil": "Brazil",
+    "ca": "Canada",          "canada": "Canada",
+    "au": "Australia",       "australia": "Australia",
+    "ru": "Russia",          "russia": "Russia",
+    "kr": "South Korea",     "korea": "South Korea",   "sk": "South Korea",
+    "mx": "Mexico",          "mexico": "Mexico",
+    "es": "Spain",           "spain": "Spain",
+    "it": "Italy",           "italy": "Italy",
 }
 
 DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com", "icloud.com"]
@@ -95,7 +98,10 @@ def resolve_country(query: str) -> str | None:
     if q in COUNTRY_MAP:
         return COUNTRY_MAP[q]
     for key in CITY_DATA:
-        if key.lower() == q or key.lower().startswith(q):
+        if key.lower() == q:
+            return key
+    for key in CITY_DATA:
+        if key.lower().startswith(q):
             return key
     return None
 
@@ -131,8 +137,8 @@ def generate_fake_identity(country: str = None):
     }
 
 
-def build_fake_msg(fake):
-    return fake_msg(fake)
+def _make_keyboard(cb: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=cb)]])
 
 
 async def fake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -157,27 +163,45 @@ async def fake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     country_query = " ".join(context.args) if context.args else None
     resolved = resolve_country(country_query) if country_query else None
+
+    if country_query and not resolved:
+        await update.message.reply_text(
+            f"❌ الدولة '{country_query}' غير موجودة.\n\n"
+            f"أمثلة: /fake us · /fake kr · /fake fr · /fake sa\n"
+            f"سيتم توليد هوية عشوائية..."
+        )
+
     log_request(user.id, "fake", resolved or "random")
+    logger.info(f"User {user.id} /fake country={resolved or 'random'}")
 
     fake = generate_fake_identity(resolved)
-    msg  = build_fake_msg(fake)
+    msg  = fake_msg(fake)
     cb_country = resolved.replace(" ", "+") if resolved else ""
     cb   = f"fake_regen_{cb_country}" if cb_country else "fake_regen"
-    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=cb)]]
-    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    await update.message.reply_text(msg, reply_markup=_make_keyboard(cb), parse_mode="HTML")
 
 
 async def fake_regen_callback(query, user):
     data = query.data
     country = None
     if data.startswith("fake_regen_"):
-        country = data[len("fake_regen_"):].replace("+", " ")
-        if not country:
-            country = None
+        country = data[len("fake_regen_"):].replace("+", " ") or None
+
     fake = generate_fake_identity(country)
-    msg  = build_fake_msg(fake)
-    keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=data)]]
+    msg  = fake_msg(fake)
+    keyboard = _make_keyboard(data)
+
     try:
-        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    except Exception:
-        pass
+        await query.edit_message_text(msg, reply_markup=keyboard, parse_mode="HTML")
+    except Exception as e:
+        err = str(e).lower()
+        if "message is not modified" in err:
+            await query.answer("✅ تم التحديث")
+        else:
+            logger.warning(f"fake_regen edit failed: {e}")
+            try:
+                await query.message.delete()
+            except Exception:
+                pass
+            await query.message.reply_text(msg, reply_markup=keyboard, parse_mode="HTML")
