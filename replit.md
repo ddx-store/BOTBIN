@@ -1,139 +1,67 @@
 # DDXSTORE Telegram Bot
 
-A Telegram bot for card generation, BIN lookup, card checking, address generation, and fake identity generation. Instructions are in Arabic, all data responses are in English. Bot understands both Arabic and English input.
+## Overview
 
-## Architecture
-
-- **Type**: Backend-only Python Telegram bot (no frontend/web UI)
-- **Language**: Python 3.12
-- **Framework**: python-telegram-bot v21.0.1
-- **Structure**: Modular (handlers, services, database, utils, config)
-- **Language approach**: Instructions/errors in Arabic, data outputs in English. Input accepts both AR/EN.
+A Telegram bot (Python) for DDXSTORE that:
+- Fetches verification codes from Gmail automatically
+- Manages users (ban/unban, broadcast messages)
+- Card generation and BIN lookup tools
+- Address and fake data generation
+- Admin panel with stats and user management
+- PostgreSQL-backed user and stats storage
+- Automatic backup system
 
 ## Project Structure
 
 ```
-bot/
-  config/
-    settings.py          — Environment variables and constants
-  database/
-    connection.py        — PostgreSQL connection helper
-    models.py            — Database schema initialization
-    queries.py           — All database CRUD operations
-    backup.py            — Local JSON backup system
-    bin_db.py            — Local SQLite BIN cache DB + request logging
-  handlers/
-    start.py             — /start, /help commands (Arabic instructions)
-    gen.py               — /gen card generation with queue support
-    bin_cmd.py           — /bin BIN lookup
-    check.py             — /chk card validation with Luhn + BIN info
-    address.py           — /address random address
-    fake.py              — /fake identity generator
-    admin.py             — Admin panel, /ban, /unban, /broadcast, /stats
-    router.py            — Smart message router (auto-detects BINs, card formats, gen patterns, country names)
-  services/
-    country_service.py   — Country detection (AR/EN), address generation, country info
-    i18n.py              — Arabic instruction texts and error messages
-  utils/
-    luhn.py              — Luhn algorithm for card validation
-    card_generator.py    — Card number generation logic
-    bin_lookup.py        — BIN lookup: memory cache → local SQLite → external API
-    rate_limiter.py      — Per-user rate limiting + flood/burst detection
-    validators.py        — Input validation helpers
-    cache.py             — TTL in-memory cache (1h BIN, 24h country)
-    queue_manager.py     — Async request queue for large card generation (>50)
-    logger.py            — Rotating file logger (logs/bot.log, 10MB × 5 files)
-  app.py                 — Bot application builder and handler registration
-main.py                  — Entry point
-data/
-  users.json             — Local user backup
-  bin_cache.db           — SQLite local BIN database + request logs
-logs/
-  bot.log                — Application log (rotating)
+telegram-bot/
+├── main.py               # Entry point
+├── requirements.txt      # Python dependencies
+├── Procfile              # Railway deploy config
+├── bot/
+│   ├── app.py            # Application setup and handler registration
+│   ├── config/
+│   │   └── settings.py   # Environment-based configuration
+│   ├── database/
+│   │   ├── connection.py  # PostgreSQL connection helper
+│   │   ├── models.py      # DB schema initialization
+│   │   ├── queries.py     # DB queries
+│   │   ├── bin_db.py      # BIN database helpers
+│   │   └── backup.py      # Backup system
+│   ├── handlers/          # Telegram command handlers
+│   ├── middlewares/       # Bot middlewares
+│   ├── services/          # External services (i18n, country)
+│   └── utils/             # Utilities (logger, rate limiter, cache, etc.)
+├── scripts/
+│   └── import_bins.py    # BIN data import script
+└── country_autodetect.py # Country detection utility
 ```
 
-## Environment Variables
+## Architecture
 
-| Variable | Required | Description |
-|---|---|---|
-| `BOT_TOKEN` | Yes | Telegram bot token from @BotFather |
-| `DATABASE_URL` | Optional | PostgreSQL connection string |
-| `ADMIN_ID` | Optional | Telegram user ID for admin access |
+- **Runtime**: Python 3.12
+- **Framework**: python-telegram-bot 21.0.1
+- **Database**: PostgreSQL (Replit built-in)
+- **External APIs**: BIN lookup (binlist.net), REST Countries API
+
+## Required Environment Secrets
+
+- `BOT_TOKEN` - Telegram bot token from @BotFather
+- `ADMIN_ID` - Telegram user ID of the admin
+- `GMAIL_USER` - Gmail address for fetching verification codes
+- `GMAIL_APP_PASSWORD` - Gmail App Password
+- `GMAIL_LABEL` - Gmail label to read from (default: TO_BOT)
+- `GIFT_CHANNEL_ID` - Telegram channel ID for gifts
+- `SUPPORT_WHATSAPP_URL` - WhatsApp support link
+
+## Running
+
+The bot runs as a background worker via polling (no web server needed).
+
+```bash
+python main.py
+```
 
 ## Workflow
 
-- **Start application**: `python main.py`
-
-## Bot Commands
-
-### User Commands
-- `/start` — Welcome message (Arabic)
-- `/help` — Full usage guide with box design (Arabic)
-- `/gen <BIN> [month] [year] [count]` — Generate cards (default 10, max 200; >50 uses queue)
-- `/bin <BIN>` — BIN information lookup (cached locally)
-- `/chk <card>` — Check card validity (Luhn + BIN info)
-- `/address <country>` — Random address (accepts Arabic/English country names)
-- `/fake` — Complete fake identity (name/email/pass/DOB/SSN/phone/address/IP/UA)
-
-### Admin Commands
-- `/admin` — Admin panel with inline buttons
-- `/stats` — Detailed statistics (users, gens, BIN lookups, top BINs, top actions, cache size)
-- `/ban <user_id>` — Ban a user
-- `/unban <user_id>` — Unban a user
-- `/broadcast <message>` — Send message to all users
-
-## Advanced Features
-
-### Smart Input Detection (router.py)
-- 6-8 digit BIN → Auto BIN lookup
-- `453212xxxxxxxx` pattern → Auto card generation
-- `453212|03|2027` or `453212-03-2027` → BIN lookup from card format
-- Country name (AR/EN) → Country info
-
-### Local BIN Database (data/bin_cache.db)
-- SQLite: bin_data table stores all fetched BINs permanently
-- Lookup order: memory cache → SQLite → external API
-- Tracks per-BIN usage count for top-BIN stats
-
-### Caching System
-- Memory TTL cache: BIN info (1 hour), country (24 hours)
-- Reduces external API calls significantly
-
-### Request Queue
-- Requests >50 cards use asyncio queue (max 3 pending per user)
-- Progress indicator sent to user; result delivered when ready
-
-### Flood Protection
-- Burst detection: 5 requests in 5 seconds = flood warning
-- Rate limit: 15 requests per 60 seconds
-
-### Logging System
-- Rotating file log: `logs/bot.log` (10MB × 5 backups)
-- Console output with structured format
-- Per-action request log in SQLite (user_id, action, detail, timestamp)
-
-### Statistics (Admin)
-- Total users, active, banned
-- Total card generations, BIN lookups, requests
-- Today's request count
-- Top 5 most-used BINs
-- Top 5 action types
-- Cache size and local BIN DB size
-
-## Database
-
-### PostgreSQL (if DATABASE_URL set)
-- `bot_users` — user_id, username, first_name, is_banned, request_count, joined_at, lang
-- `bot_stats` — total_gens, total_bin_lookups, total_requests
-
-### Local SQLite (data/bin_cache.db, always active)
-- `bin_data` — BIN info cache with hit counts
-- `bin_stats` — Per-BIN usage counts
-- `request_log` — Per-request action log
-
-Falls back to local `data/users.json` for user tracking when no PostgreSQL.
-
-## Design Style
-- Professional box design with ──────────────────── separators
-- All data outputs in English with DDXSTORE branding and @ddx22 credit
-- Generate Again inline buttons on: /gen, /address, /fake
+- **Start application**: `python main.py` (console output)
