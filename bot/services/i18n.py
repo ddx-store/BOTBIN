@@ -67,7 +67,13 @@ MSG_BIN_LOOKUP = "\u23f3 \u062c\u0627\u0631\u064a \u0627\u0644\u0641\u062d\u0635
 MSG_BIN_ERROR = "\u274c \u062e\u0637\u0623 \u0641\u064a \u0641\u062d\u0635 BIN."
 MSG_ADDR_EXAMPLE = "\u274c \u0623\u062f\u062e\u0644 \u0627\u0633\u0645 \u0627\u0644\u062f\u0648\u0644\u0629\n\n\u0645\u062b\u0627\u0644: /address us\n\u0645\u062b\u0627\u0644: /address \u0627\u0644\u0633\u0639\u0648\u062f\u064a\u0629"
 MSG_ADDR_NOT_FOUND = "\u274c \u0627\u0644\u062f\u0648\u0644\u0629 '{country}' \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f\u0629\n\n\u062c\u0631\u0628: /address us, /address uk"
-MSG_CHK_EXAMPLE = "\u274c \u0623\u062f\u062e\u0644 \u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629\n\n\u0645\u062b\u0627\u0644: /chk 4510141234567890"
+MSG_CHK_EXAMPLE = (
+    "❌ أدخل رقم البطاقة\n\n"
+    "مثال بسيط:\n"
+    "/chk 4510141234567890\n\n"
+    "مثال كامل (رقم|شهر|سنة|CVV):\n"
+    "/chk 4510141234567890|08|2029|123"
+)
 MSG_CHK_CHECKING = "\u23f3 \u062c\u0627\u0631\u064a \u0627\u0644\u0641\u062d\u0635..."
 
 BTN_GENERATE_AGAIN = "\U0001f504 Generate Again"

@@ -121,23 +121,54 @@ def bin_lookup_msg(bin_num: str, info: dict) -> str:
 
 # ─── Card Checker ─────────────────────────────────────────────────────────────
 
-def chk_msg(card_number: str, valid: bool, info: dict) -> str:
-    status_text = "<b>\u2705 VALID</b>" if valid else "<b>\u274c INVALID</b>"
-    luhn_text = "Valid \u2714" if valid else "Invalid \u2718"
-    header_icon = "\u2705" if valid else "\u274c"
+def chk_msg(card_number: str, valid: bool, info: dict,
+            month: str = None, year: str = None, cvv: str = None,
+            length_ok: bool = None,
+            expiry_ok=None, expiry_note: str = None) -> str:
+
+    overall_ok = valid and (length_ok is not False) and (expiry_ok is not False)
+    header_icon = "\u2705" if overall_ok else "\u274c"
+    status_text = ("<b>\u2705 VALID</b>" if overall_ok else "<b>\u274c INVALID</b>")
+    luhn_text   = "Valid \u2714" if valid else "Invalid \u2718"
+
     masked = card_number[:6] + ("\u2022" * (len(card_number) - 10)) + card_number[-4:]
+
+    full_card = card_number
+    if month and year:
+        full_card += f"|{month}|20{year}"
+        if cvv:
+            full_card += f"|{cvv}"
 
     parts = [
         SEP_LONG,
         "    " + header_icon + "  <b>DDX CARD CHECK</b>",
         SEP_LONG,
         _lv("Card", _code(masked), "\U0001f4b3"),
+    ]
+
+    if month and year:
+        exp_str = f"{month}/20{year}" + (f" | CVV: {cvv}" if cvv else "")
+        parts.append(_lv("Expiry", exp_str, "\U0001f4c5"))
+
+    parts += [
         _lv("Status", status_text, "\U0001f50d"),
-        _lv("Luhn", luhn_text, "\U0001f510"),
-        _lv("Brand", info.get("scheme") or "\u2014", "\U0001f3f7"),
-        _lv("Type", info.get("type") or "\u2014", "\U0001f4cb"),
-        _lv("Bank", _trim(info.get("bank") or "\u2014", 28), "\U0001f3e6"),
+        _lv("Luhn",   luhn_text, "\U0001f510"),
+    ]
+
+    if length_ok is not None:
+        parts.append(_lv("Length", f"{len(card_number)} \u2714" if length_ok else f"{len(card_number)} \u2718", "\U0001f4cf"))
+
+    if expiry_note is not None:
+        parts.append(_lv("Validity", expiry_note, "\u23f3"))
+
+    parts += [
+        _lv("Brand",   info.get("scheme") or "\u2014", "\U0001f3f7"),
+        _lv("Type",    info.get("type") or "\u2014", "\U0001f4cb"),
+        _lv("Level",   info.get("level") or "\u2014", "\u2b50"),
+        _lv("Bank",    _trim(info.get("bank") or "\u2014", 28), "\U0001f3e6"),
         _lv("Country", _country_str(info), "\U0001f30d"),
+        SEP_LONG,
+        _lv("Full",    _code(full_card), "\U0001f4cb"),
         SEP_LONG,
         "    <i>" + FOOT + "</i>",
     ]

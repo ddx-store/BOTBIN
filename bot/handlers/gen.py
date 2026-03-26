@@ -6,6 +6,7 @@ from bot.database.queries import (
 )
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
+from bot.utils.anti_abuse import check_bin_abuse, record_violation, get_remaining_before_ban
 from bot.utils.card_generator import generate_cards
 from bot.utils.luhn import is_valid_luhn
 from bot.utils.bin_lookup import bin_lookup
@@ -142,6 +143,18 @@ async def gen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw_digits = re.sub(r"[^0-9]", "", bin_input.lower().split("x")[0] if "x" in bin_input.lower() else bin_input)
     if len(raw_digits) < 6:
         await update.message.reply_text(MSG_INVALID_BIN)
+        return
+
+    if check_bin_abuse(user.id, raw_digits[:6]):
+        banned = record_violation(user.id, f"BIN abuse: {raw_digits[:6]}")
+        if banned:
+            await update.message.reply_text(MSG_BANNED)
+        else:
+            remaining = get_remaining_before_ban(user.id)
+            await update.message.reply_text(
+                f"⚠️ تحذير: طلبات مفرطة على نفس BIN.\n"
+                f"تحذير {5 - remaining}/5 — عند الوصول للحد ستُحظر تلقائياً."
+            )
         return
 
     increment_request_count(user.id)

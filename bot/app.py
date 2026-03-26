@@ -1,3 +1,4 @@
+import os
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from bot.config.settings import BOT_TOKEN
 from bot.database.models import init_db
@@ -17,6 +18,8 @@ from bot.database.queries import is_user_banned
 from bot.utils.logger import get_logger
 
 logger = get_logger("app")
+
+WEBHOOK_PORT = 8080
 
 
 async def button_callback(update, context):
@@ -79,5 +82,20 @@ def run():
     app = create_app()
     if not app:
         return
-    logger.info("Starting DDXSTORE bot polling...")
-    app.run_polling(drop_pending_updates=True)
+
+    dev_domain = os.getenv("REPLIT_DEV_DOMAIN")
+
+    if dev_domain:
+        webhook_url = f"https://{dev_domain}/webhook"
+        logger.info(f"Starting webhook mode → {webhook_url}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=WEBHOOK_PORT,
+            url_path="/webhook",
+            webhook_url=webhook_url,
+            drop_pending_updates=True,
+            allowed_updates=["message", "callback_query"],
+        )
+    else:
+        logger.info("Starting polling mode...")
+        app.run_polling(drop_pending_updates=True)
