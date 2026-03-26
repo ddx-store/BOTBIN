@@ -39,7 +39,13 @@ def generate_cards(prefix, count=10, fixed_month=None, fixed_year=None, fixed_cv
         card = generate_card_from_prefix(prefix)
         if not card:
             continue
-        m, y = (fixed_month, fixed_year) if (fixed_month and fixed_year) else generate_expiry()
+        if fixed_month and fixed_year:
+            m, y = fixed_month, fixed_year
+        elif fixed_month:
+            _, y = generate_expiry()
+            m = fixed_month
+        else:
+            m, y = generate_expiry()
         cvv = fixed_cvv if fixed_cvv else generate_cvv()
         cards.append({"number": card, "month": m, "year": y, "cvv": cvv})
     return cards

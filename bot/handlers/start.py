@@ -49,11 +49,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def setup_commands(application):
     await application.bot.set_my_commands([
-        BotCommand("start", "\u0627\u0628\u062f\u0623"),
-        BotCommand("gen", "\u062a\u0648\u0644\u064a\u062f \u0628\u0637\u0627\u0642\u0627\u062a"),
-        BotCommand("bin", "\u0641\u062d\u0635 BIN"),
-        BotCommand("chk", "\u0641\u062d\u0635 \u0635\u062d\u0629 \u0628\u0637\u0627\u0642\u0629"),
-        BotCommand("address", "\u0639\u0646\u0648\u0627\u0646 \u0639\u0634\u0648\u0627\u0626\u064a"),
-        BotCommand("fake", "\u0647\u0648\u064a\u0629 \u0648\u0647\u0645\u064a\u0629"),
-        BotCommand("help", "\u062f\u0644\u064a\u0644 \u0627\u0644\u0627\u0633\u062a\u062e\u062f\u0627\u0645"),
+        BotCommand("start",   "ابدأ"),
+        BotCommand("gen",     "توليد بطاقات"),
+        BotCommand("bin",     "فحص BIN"),
+        BotCommand("chk",     "فحص صحة بطاقة"),
+        BotCommand("address", "عنوان عشوائي"),
+        BotCommand("fake",    "هوية وهمية"),
+        BotCommand("myinfo",  "معلوماتي"),
+        BotCommand("help",    "دليل الاستخدام"),
     ])

@@ -43,8 +43,8 @@ async def format_gen_response(user, bin_input, count=DEFAULT_CARD_COUNT,
                   fixed_cvv=fixed_cvv, checked=len(cards))
 
     callback_data = f"regen_{prefix}_{count}"
-    if fixed_month and fixed_year:
-        callback_data += f"_{fixed_month}_{fixed_year}"
+    if fixed_month:
+        callback_data += f"_{fixed_month}_{fixed_year or 'x'}"
     if fixed_cvv:
         callback_data += f"_cvv{fixed_cvv}"
 
@@ -127,9 +127,13 @@ def _parse_gen_input(text: str):
                 except ValueError:
                     pass
     elif len(remaining) == 1:
+        r = remaining[0]
         try:
-            val = int(remaining[0])
-            if 2 <= val <= MAX_CARD_COUNT:
+            val = int(r)
+            # Leading zero (e.g. "01"-"09") or val==1 → fixed month, random year
+            if (len(r) == 2 and r[0] == "0" and 1 <= val <= 9) or val == 1:
+                month = r.zfill(2)
+            elif 2 <= val <= MAX_CARD_COUNT:
                 count = val
         except ValueError:
             pass
@@ -218,6 +222,8 @@ async def regen_callback(query, user):
     count     = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else DEFAULT_CARD_COUNT
     month     = parts[3] if len(parts) > 4 else None
     year      = parts[4] if len(parts) > 4 else None
+    if year == "x":
+        year = None
     fixed_cvv = None
     for p in parts:
         if p.startswith("cvv"):
