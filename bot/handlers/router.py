@@ -7,7 +7,7 @@ from bot.utils.validators import is_bin_pattern
 from bot.utils.bin_lookup import bin_lookup
 from bot.utils.rate_limiter import check_rate_limit, check_flood
 from bot.utils.formatter import bin_lookup_msg
-from bot.services.country_service import find_country, get_country_info_text
+from bot.services.country_service import find_country, get_address_text
 from bot.services.i18n import DEFAULT_REPLY, MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD, BTN_GENERATE_AGAIN
 from bot.config.settings import ADMIN_ID, DEFAULT_CARD_COUNT
 from bot.utils.logger import get_logger
@@ -113,8 +113,10 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log_request(user.id, "country", text[:50])
         increment_request_stat()
         increment_request_count(user.id)
-        msg = get_country_info_text(country_match, False)
-        await update.message.reply_text(msg, parse_mode="HTML")
+        country_name = country_match["name"]
+        msg = get_address_text(country_name, False)
+        keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=f"addr_{country_name}")]]
+        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     await update.message.reply_text(DEFAULT_REPLY)
