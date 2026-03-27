@@ -96,6 +96,14 @@ The bot runs as a background worker via polling (no web server needed).
 python main.py
 ```
 
+## Security Hardening (Applied)
+
+- **HTML injection protection**: All user-controlled fields (username, first_name, forwarded text) escaped via `html.escape()` before embedding in HTML-mode Telegram messages (admin.py, router.py)
+- **Admin self-ban protection**: `/ban` command and panel callback both block banning the admin's own ID
+- **File descriptor leak fix**: Backup file opened with `with` context manager
+- **Username sync**: `register_user` now updates username/first_name on every `/start` (existing users get updated, return value preserved for new/returning distinction)
+- **parse_mode consistency**: `router.py` address auto-detect now sends `parse_mode="HTML"` matching `<code>` tags in `get_address_text`
+
 ## Workflow
 
 - **Start application**: `python main.py` (console output)

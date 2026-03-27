@@ -30,8 +30,9 @@ async def forward_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user or user.id == ADMIN_ID:
         return
     try:
-        name = f"@{user.username}" if user.username else user.first_name or str(user.id)
-        text = update.message.text or ""
+        import html as _h
+        name = _h.escape(f"@{user.username}" if user.username else user.first_name or str(user.id))
+        text = _h.escape(update.message.text or "")
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"\U0001f4e9 {name} ({user.id}):\n{text[:300]}",
@@ -116,7 +117,7 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         country_name = country_match["name"]
         msg = get_address_text(country_name, False)
         keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=f"addr_{country_name}")]]
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         return
 
     await update.message.reply_text(DEFAULT_REPLY)

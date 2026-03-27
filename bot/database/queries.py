@@ -17,6 +17,10 @@ def register_user(user_id, username, first_name):
             (user_id, username, first_name),
         )
         return True
+    execute_query(
+        "UPDATE bot_users SET username = %s, first_name = %s WHERE user_id = %s",
+        (username, first_name, user_id),
+    )
     return False
 
 

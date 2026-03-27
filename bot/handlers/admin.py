@@ -1,4 +1,5 @@
 import re
+import html as _h
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -107,8 +108,8 @@ def _build_main_msg(total, active, banned, gens, bin_lookups, requests, today, p
 
 
 def _build_user_card(info: dict) -> str:
-    uname    = f"@{info['username']}" if info.get("username") else "—"
-    fname    = info.get("first_name") or "—"
+    uname    = _h.escape(f"@{info['username']}") if info.get("username") else "—"
+    fname    = _h.escape(info.get("first_name") or "—")
     uid      = info["user_id"]
     joined   = str(info.get("joined_at") or "—")[:10]
     reqs     = info.get("request_count", 0)
@@ -156,6 +157,9 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ الاستخدام: /ban <user_id>")
         return
     target_id = int(context.args[0]) if context.args[0].isdigit() else 0
+    if target_id == ADMIN_ID:
+        await update.message.reply_text("❌ لا يمكنك حظر نفسك.")
+        return
     if target_id and set_ban_status(target_id, True):
         logger.info(f"Admin banned user {target_id}")
         await update.message.reply_text(f"🚫 تم حظر <code>{target_id}</code>", parse_mode="HTML")
@@ -374,7 +378,7 @@ async def admin_callback(query, user):
         lines = [f"{S}\n   🚫  المحظورون — {len(banned_list)} مستخدم\n{S}\n"]
         btns  = []
         for uid, uname, fname in banned_list[:20]:
-            name = f"@{uname}" if uname else (fname or str(uid))
+            name = _h.escape(f"@{uname}" if uname else (fname or str(uid)))
             lines.append(f"• {name}  <code>{uid}</code>")
             btns.append([InlineKeyboardButton(f"👤 {name}", callback_data=f"admin_uc_{uid}")])
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin_back")])
@@ -397,7 +401,7 @@ async def admin_callback(query, user):
         lines = [f"{S}\n   💎  مشتركو Premium — {len(rows)} عضو\n{S}\n"]
         btns  = []
         for uid, uname, fname, until in rows[:20]:
-            name = f"@{uname}" if uname else (fname or str(uid))
+            name = _h.escape(f"@{uname}" if uname else (fname or str(uid)))
             exp  = str(until)[:10] if until else "دائم"
             lines.append(f"• {name}  <code>{uid}</code>  📅 {exp}")
             btns.append([InlineKeyboardButton(f"👤 {name}", callback_data=f"admin_uc_{uid}")])
@@ -442,11 +446,12 @@ async def admin_callback(query, user):
     # ── نسخة احتياطية (exact) ────────────────────────
     elif data == "admin_backup_file":
         if USERS_JSON.exists():
-            await query.message.reply_document(
-                document=open(USERS_JSON, "rb"),
-                filename="users_backup.json",
-                caption="💾 نسخة احتياطية للمستخدمين",
-            )
+            with open(USERS_JSON, "rb") as f:
+                await query.message.reply_document(
+                    document=f,
+                    filename="users_backup.json",
+                    caption="💾 نسخة احتياطية للمستخدمين",
+                )
             await query.answer("✅ تم الإرسال")
         else:
             await query.answer("❌ لا توجد بيانات", show_alert=True)
@@ -500,7 +505,7 @@ async def admin_callback(query, user):
 
         btns = []
         for uid, uname, fname, is_banned, is_prem, reqs, gens, joined in rows:
-            name  = f"@{uname}" if uname else (fname or str(uid))
+            name  = _h.escape(f"@{uname}" if uname else (fname or str(uid)))
             badge = "🚫" if is_banned else ("💎" if is_prem else "")
             label = f"{badge} {name}  ({uid})" if badge else f"{name}  ({uid})"
             btns.append([InlineKeyboardButton(label, callback_data=f"admin_uc_{uid}")])
@@ -533,6 +538,9 @@ async def admin_callback(query, user):
     # ── حظر من البطاقة ────────────────────────────────
     elif data.startswith("admin_ban_"):
         uid = int(data.split("_")[-1])
+        if uid == ADMIN_ID:
+            await query.answer("❌ لا يمكنك حظر نفسك", show_alert=True)
+            return
         if set_ban_status(uid, True):
             logger.info(f"Admin banned {uid} via panel")
             await query.answer("🚫 تم الحظر", show_alert=True)
@@ -593,7 +601,7 @@ async def admin_callback(query, user):
         info = get_user_info(uid)
         name = str(uid)
         if info:
-            name = f"@{info['username']}" if info.get("username") else (info.get("first_name") or str(uid))
+            name = _h.escape(f"@{info['username']}" if info.get("username") else (info.get("first_name") or str(uid)))
         msg = (
             f"⚠️ <b>تأكيد الحذف</b>\n\n"
             f"هل تريد حذف المستخدم <b>{name}</b> (<code>{uid}</code>) نهائياً؟\n\n"
