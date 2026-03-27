@@ -1,5 +1,6 @@
 import re
 import asyncio
+import httpx
 from telegram import Update
 from telegram.ext import ContextTypes
 from bot.database.queries import (
@@ -9,18 +10,18 @@ from bot.database.queries import (
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood
 from bot.utils.luhn import is_valid_luhn
-from bot.utils.bin_lookup import bin_lookup
 from bot.utils.formatter import mchk_line, mchk_msg
 from bot.utils.crypto import decrypt_value
 from bot.utils.stripe_checker import live_check
 from bot.config.settings import FREE_CHK_LIMIT, ADMIN_ID
-from bot.services.i18n import MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD, MSG_ERROR
+from bot.services.i18n import MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD
 from bot.utils.logger import get_logger
 
 logger = get_logger("mass_check")
 
 MAX_MASS_CHECK = 50
 MASS_CHECK_DELAY = 1.5
+TG_MSG_LIMIT = 4000
 
 
 def _parse_card_line(line: str):
@@ -122,9 +123,7 @@ async def mchk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     total = len(cards)
     wait_msg = await update.message.reply_text(
-        f"⏳ جاري فحص {total} بطاقة...\n"
-        f"📊 0/{total}",
-        parse_mode="HTML",
+        f"⏳ جاري فحص {total} بطاقة...\n📊 0/{total}",
     )
 
     results = []
@@ -132,52 +131,62 @@ async def mchk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dead_count = 0
     err_count = 0
 
-    for i, (number, month, year, cvv) in enumerate(cards):
-        try:
-            luhn_ok = is_valid_luhn(number)
-            if not luhn_ok:
-                lr = {"status": "dead", "display": "Invalid Luhn", "decline_code": "luhn_fail", "raw_message": "", "gate": ""}
-            else:
-                lr = await live_check(number, month, year, cvv, stripe_key)
-
-            st = lr.get("status", "unknown")
-            if st == "live":
-                live_count += 1
-            elif st in ("dead", "ccv_error"):
-                dead_count += 1
-            else:
-                err_count += 1
-
-            results.append(mchk_line(number, month, year, cvv, lr))
-
-        except Exception as e:
-            logger.error(f"Mass check error card {i}: {e}")
-            err_count += 1
-            results.append(f"⚠️  <code>{number[:6]}••••{number[-4:]}</code>")
-
-        if not is_admin and not is_prem:
-            increment_chk_count(user.id)
-
-        increment_request_count(user.id)
-        increment_request_stat()
-        log_request(user.id, "mchk", number[:6])
-
-        if (i + 1) % 5 == 0 or i == total - 1:
+    async with httpx.AsyncClient(timeout=15) as http_client:
+        for i, (number, month, year, cvv) in enumerate(cards):
             try:
-                await wait_msg.edit_text(
-                    f"⏳ جاري الفحص... {i+1}/{total}\n"
-                    f"✅ {live_count}  ❌ {dead_count}  ⚠️ {err_count}",
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass
+                luhn_ok = is_valid_luhn(number)
+                if not luhn_ok:
+                    lr = {"status": "dead", "display": "Invalid Luhn", "decline_code": "luhn_fail", "raw_message": "", "gate": ""}
+                else:
+                    lr = await live_check(number, month, year, cvv, stripe_key, client=http_client)
 
-        if i < total - 1:
-            await asyncio.sleep(MASS_CHECK_DELAY)
+                st = lr.get("status", "unknown")
+                if st == "live":
+                    live_count += 1
+                elif st in ("dead", "ccv_error"):
+                    dead_count += 1
+                else:
+                    err_count += 1
+
+                results.append(mchk_line(number, month, year, cvv, lr))
+
+            except Exception as e:
+                logger.error(f"Mass check error card {i}: {e}")
+                err_count += 1
+                results.append(f"⚠️  <code>{number[:6]}••••{number[-4:]}</code>")
+
+            if not is_admin and not is_prem:
+                increment_chk_count(user.id)
+
+            increment_request_count(user.id)
+            increment_request_stat()
+            log_request(user.id, "mchk", number[:6])
+
+            if (i + 1) % 5 == 0 or i == total - 1:
+                try:
+                    await wait_msg.edit_text(
+                        f"⏳ جاري الفحص... {i+1}/{total}\n"
+                        f"✅ {live_count}  ❌ {dead_count}  ⚠️ {err_count}",
+                    )
+                except Exception:
+                    pass
+
+            if i < total - 1:
+                await asyncio.sleep(MASS_CHECK_DELAY)
 
     msg = mchk_msg(results, total, live_count, dead_count, err_count, user)
 
-    try:
-        await wait_msg.edit_text(msg, parse_mode="HTML")
-    except Exception:
-        await update.message.reply_text(msg, parse_mode="HTML")
+    if len(msg) > TG_MSG_LIMIT:
+        mid = len(results) // 2
+        msg1 = mchk_msg(results[:mid], total, live_count, dead_count, err_count, user)
+        msg2 = mchk_msg(results[mid:], total, live_count, dead_count, err_count, user)
+        try:
+            await wait_msg.edit_text(msg1, parse_mode="HTML")
+        except Exception:
+            await update.message.reply_text(msg1, parse_mode="HTML")
+        await update.message.reply_text(msg2, parse_mode="HTML")
+    else:
+        try:
+            await wait_msg.edit_text(msg, parse_mode="HTML")
+        except Exception:
+            await update.message.reply_text(msg, parse_mode="HTML")

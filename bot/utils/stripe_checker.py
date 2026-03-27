@@ -34,110 +34,108 @@ _STATUS_MAP = {
 
 
 async def live_check(card_number: str, month: str, year: str, cvv: str,
-                     stripe_key: str) -> dict:
+                     stripe_key: str, client: httpx.AsyncClient = None) -> dict:
     exp_year = int(year) + 2000 if len(year) == 2 else int(year)
+    auth = (stripe_key, "")
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        auth = (stripe_key, "")
+    if client:
+        return await _live_check_inner(client, auth, card_number, month, exp_year, cvv)
 
-        pm_resp = await client.post(
-            f"{STRIPE_API}/payment_methods",
-            auth=auth,
-            data={
-                "type": "card",
-                "card[number]": card_number,
-                "card[exp_month]": str(int(month)),
-                "card[exp_year]": str(exp_year),
-                "card[cvc]": cvv,
-            },
-        )
-        pm_data = pm_resp.json()
+    async with httpx.AsyncClient(timeout=15) as c:
+        return await _live_check_inner(c, auth, card_number, month, exp_year, cvv)
 
-        if pm_data.get("error"):
-            err = pm_data["error"]
-            decline_code = err.get("decline_code") or err.get("code") or "unknown"
-            status, display = _STATUS_MAP.get(decline_code, ("dead", f"Error: {decline_code}"))
-            logger.info(f"Stripe PM error: {decline_code}")
-            return {
-                "status": status,
-                "display": display,
-                "decline_code": decline_code,
-                "raw_message": err.get("message", ""),
-                "gate": "Stripe",
-            }
 
-        pm_id = pm_data["id"]
+async def _live_check_inner(client: httpx.AsyncClient, auth: tuple,
+                            card_number: str, month: str, exp_year: int,
+                            cvv: str) -> dict:
+    pm_resp = await client.post(
+        f"{STRIPE_API}/payment_methods",
+        auth=auth,
+        data={
+            "type": "card",
+            "card[number]": card_number,
+            "card[exp_month]": str(int(month)),
+            "card[exp_year]": str(exp_year),
+            "card[cvc]": cvv,
+        },
+    )
+    pm_data = pm_resp.json()
 
-        pi_resp = await client.post(
-            f"{STRIPE_API}/payment_intents",
-            auth=auth,
-            data={
-                "amount": str(CHARGE_AMOUNT),
-                "currency": "usd",
-                "payment_method": pm_id,
-                "confirm": "true",
-                "payment_method_types[]": "card",
-            },
-        )
-        pi_data = pi_resp.json()
+    if pm_data.get("error"):
+        err = pm_data["error"]
+        decline_code = err.get("decline_code") or err.get("code") or "unknown"
+        status, display = _STATUS_MAP.get(decline_code, ("dead", f"Error: {decline_code}"))
+        logger.info(f"Stripe PM error: {decline_code}")
+        return {
+            "status": status,
+            "display": display,
+            "decline_code": decline_code,
+            "raw_message": err.get("message", ""),
+            "gate": "Stripe",
+        }
 
-        if pi_data.get("error"):
-            err = pi_data["error"]
-            decline_code = err.get("decline_code") or err.get("code") or "unknown"
-            status, display = _STATUS_MAP.get(decline_code, ("dead", f"Declined: {decline_code}"))
-            logger.info(f"Stripe PI declined: {decline_code}")
+    pm_id = pm_data["id"]
 
-            pi_id = err.get("payment_intent", {}).get("id") if isinstance(err.get("payment_intent"), dict) else err.get("payment_intent")
-            if pi_id:
-                try:
-                    await client.post(f"{STRIPE_API}/payment_intents/{pi_id}/cancel", auth=auth)
-                except Exception:
-                    pass
+    pi_resp = await client.post(
+        f"{STRIPE_API}/payment_intents",
+        auth=auth,
+        data={
+            "amount": str(CHARGE_AMOUNT),
+            "currency": "usd",
+            "payment_method": pm_id,
+            "confirm": "true",
+            "payment_method_types[]": "card",
+        },
+    )
+    pi_data = pi_resp.json()
 
-            return {
-                "status": status,
-                "display": display,
-                "decline_code": decline_code,
-                "raw_message": err.get("message", ""),
-                "gate": "Stripe",
-            }
+    if pi_data.get("error"):
+        err = pi_data["error"]
+        decline_code = err.get("decline_code") or err.get("code") or "unknown"
+        status, display = _STATUS_MAP.get(decline_code, ("dead", f"Declined: {decline_code}"))
+        logger.info(f"Stripe PI declined: {decline_code}")
 
-        pi_status = pi_data.get("status", "")
-        pi_id = pi_data.get("id", "")
-
-        if pi_status == "requires_action":
+        pi_id = err.get("payment_intent", {}).get("id") if isinstance(err.get("payment_intent"), dict) else err.get("payment_intent")
+        if pi_id:
             try:
                 await client.post(f"{STRIPE_API}/payment_intents/{pi_id}/cancel", auth=auth)
             except Exception:
                 pass
-            return {
-                "status": "3d_secure",
-                "display": "3D Secure Required \U0001f512",
-                "decline_code": "3d_secure",
-                "raw_message": "Card requires 3D Secure authentication",
-                "gate": "Stripe",
-            }
 
-        if pi_status == "succeeded":
-            try:
-                ref_resp = await client.post(
-                    f"{STRIPE_API}/refunds",
-                    auth=auth,
-                    data={"payment_intent": pi_id},
-                )
-                ref_data = ref_resp.json()
-                if ref_data.get("error"):
-                    logger.error(f"Stripe: refund API error for {pi_id}: {ref_data['error']}")
-                    return {
-                        "status": "error",
-                        "display": "Charged but refund failed \u26a0\ufe0f",
-                        "decline_code": "refund_failed",
-                        "raw_message": "Card charged $1 but auto-refund failed — check Stripe dashboard",
-                        "gate": "Stripe",
-                    }
-                logger.info(f"Stripe: auto-refunded PI {pi_id}")
-            except Exception as e:
-                logger.error(f"Stripe: refund exception for {pi_id}: {e}")
+        return {
+            "status": status,
+            "display": display,
+            "decline_code": decline_code,
+            "raw_message": err.get("message", ""),
+            "gate": "Stripe",
+        }
+
+    pi_status = pi_data.get("status", "")
+    pi_id = pi_data.get("id", "")
+
+    if pi_status == "requires_action":
+        try:
+            await client.post(f"{STRIPE_API}/payment_intents/{pi_id}/cancel", auth=auth)
+        except Exception:
+            pass
+        return {
+            "status": "3d_secure",
+            "display": "3D Secure Required \U0001f512",
+            "decline_code": "3d_secure",
+            "raw_message": "Card requires 3D Secure authentication",
+            "gate": "Stripe",
+        }
+
+    if pi_status == "succeeded":
+        try:
+            ref_resp = await client.post(
+                f"{STRIPE_API}/refunds",
+                auth=auth,
+                data={"payment_intent": pi_id},
+            )
+            ref_data = ref_resp.json()
+            if ref_data.get("error"):
+                logger.error(f"Stripe: refund API error for {pi_id}: {ref_data['error']}")
                 return {
                     "status": "error",
                     "display": "Charged but refund failed \u26a0\ufe0f",
@@ -145,24 +143,34 @@ async def live_check(card_number: str, month: str, year: str, cvv: str,
                     "raw_message": "Card charged $1 but auto-refund failed — check Stripe dashboard",
                     "gate": "Stripe",
                 }
-
+            logger.info(f"Stripe: auto-refunded PI {pi_id}")
+        except Exception as e:
+            logger.error(f"Stripe: refund exception for {pi_id}: {e}")
             return {
-                "status": "live",
-                "display": "Charged & Refunded \u2705",
-                "decline_code": "approved",
-                "raw_message": "Card is live — charge was auto-refunded",
+                "status": "error",
+                "display": "Charged but refund failed \u26a0\ufe0f",
+                "decline_code": "refund_failed",
+                "raw_message": "Card charged $1 but auto-refund failed — check Stripe dashboard",
                 "gate": "Stripe",
             }
 
-        try:
-            await client.post(f"{STRIPE_API}/payment_intents/{pi_id}/cancel", auth=auth)
-        except Exception:
-            pass
-
         return {
-            "status": "unknown",
-            "display": f"Unknown: {pi_status}",
-            "decline_code": pi_status,
-            "raw_message": "",
+            "status": "live",
+            "display": "Charged & Refunded \u2705",
+            "decline_code": "approved",
+            "raw_message": "Card is live — charge was auto-refunded",
             "gate": "Stripe",
         }
+
+    try:
+        await client.post(f"{STRIPE_API}/payment_intents/{pi_id}/cancel", auth=auth)
+    except Exception:
+        pass
+
+    return {
+        "status": "unknown",
+        "display": f"Unknown: {pi_status}",
+        "decline_code": pi_status,
+        "raw_message": "",
+        "gate": "Stripe",
+    }

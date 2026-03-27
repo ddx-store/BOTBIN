@@ -302,14 +302,14 @@ def search_user(query_str: str):
     if q.isdigit():
         result = execute_query(
             """SELECT user_id, username, first_name, is_banned, is_premium,
-                      request_count, gen_count, joined_at
+                      request_count, gen_count, joined_at, COALESCE(chk_count, 0)
                FROM bot_users WHERE user_id = %s""",
             (int(q),), fetch_one=True,
         )
     else:
         result = execute_query(
             """SELECT user_id, username, first_name, is_banned, is_premium,
-                      request_count, gen_count, joined_at
+                      request_count, gen_count, joined_at, COALESCE(chk_count, 0)
                FROM bot_users WHERE LOWER(username) = LOWER(%s)""",
             (q,), fetch_one=True,
         )
@@ -324,6 +324,7 @@ def search_user(query_str: str):
         "request_count": result[5] or 0,
         "gen_count":     result[6] or 0,
         "joined_at":     result[7],
+        "chk_count":     result[8] or 0,
     }
 
 

@@ -303,18 +303,30 @@ async def setkey_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     raw_key = args[0].strip()
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
     if not (raw_key.startswith("sk_live_") or raw_key.startswith("sk_test_")):
-        await update.message.reply_text("❌ المفتاح يجب أن يبدأ بـ <code>sk_live_</code> أو <code>sk_test_</code>", parse_mode="HTML")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="❌ المفتاح يجب أن يبدأ بـ <code>sk_live_</code> أو <code>sk_test_</code>",
+            parse_mode="HTML",
+        )
         return
     encrypted = encrypt_value(raw_key)
     ok = set_setting("stripe_key", encrypted)
     if not ok:
-        await update.message.reply_text("❌ فشل حفظ المفتاح — تحقق من قاعدة البيانات")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="❌ فشل حفظ المفتاح — تحقق من قاعدة البيانات",
+        )
         return
     masked = raw_key[:8] + "..." + raw_key[-4:]
     logger.info("Admin set Stripe key")
-    await update.message.reply_text(
-        f"✅ تم حفظ مفتاح Stripe\n<code>{_h.escape(masked)}</code>",
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f"✅ تم حفظ مفتاح Stripe\n<code>{_h.escape(masked)}</code>",
         parse_mode="HTML",
     )
 
@@ -349,7 +361,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await context.bot.send_message(chat_id=u_id, text=msg)
             success += 1
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.04 if success % 25 != 0 else 1.0)
         except Exception:
             failed += 1
     logger.info(f"Broadcast: {success} sent, {failed} failed")
