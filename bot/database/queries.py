@@ -37,6 +37,12 @@ def is_user_banned(user_id):
 def set_ban_status(user_id, status):
     if not DATABASE_URL:
         return False
+    existing = execute_query(
+        "SELECT user_id FROM bot_users WHERE user_id = %s",
+        (user_id,), fetch_one=True,
+    )
+    if not existing:
+        return False
     result = execute_query(
         "UPDATE bot_users SET is_banned = %s WHERE user_id = %s",
         (status, user_id),
@@ -206,6 +212,15 @@ def is_premium_user(user_id: int) -> bool:
 def set_premium(user_id: int, status: bool, days: int = None) -> bool:
     if not DATABASE_URL:
         return False
+    existing = execute_query(
+        "SELECT user_id FROM bot_users WHERE user_id = %s",
+        (user_id,), fetch_one=True,
+    )
+    if not existing:
+        execute_query(
+            "INSERT INTO bot_users (user_id) VALUES (%s)",
+            (user_id,),
+        )
     if status and days:
         from datetime import datetime, timedelta
         until = datetime.now() + timedelta(days=days)
