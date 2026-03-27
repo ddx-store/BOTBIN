@@ -7,7 +7,7 @@ from bot.utils.logger import get_logger
 
 logger = get_logger("myinfo")
 
-SEP = "─" * 18
+S = "━" * 16
 
 
 async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -41,49 +41,47 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "joined_at":     None,
         }
 
-    username_str = _h.escape(f"@{info['username']}") if info.get("username") else "—"
-    name_str     = _h.escape(info.get("first_name") or "—")
+    uname = _h.escape(f"@{info['username']}") if info.get("username") else "—"
+    name = _h.escape(info.get("first_name") or "—")
+    uid = info["user_id"]
 
     joined = info.get("joined_at")
     joined_str = str(joined)[:10] if joined else "—"
 
     is_premium = info.get("is_premium", False)
     is_admin_user = ADMIN_ID and user.id == ADMIN_ID
-    premium_until = info.get("premium_until")
 
-    if is_premium:
-        if premium_until:
-            exp_str = str(premium_until)[:10]
-            member_line = f"💎 Premium (حتى {exp_str})"
-        else:
-            member_line = "💎 Premium (دائم)"
+    if is_admin_user:
+        tier = "👑 Admin"
+    elif is_premium:
+        pu = info.get("premium_until")
+        tier = f"💎 Premium — {str(pu)[:10]}" if pu else "💎 Premium"
     else:
-        member_line = "🆓 Free"
-
-    ban_str = "🚫 محظور" if info.get("is_banned") else "✅ نشط"
+        tier = "🆓 Free"
 
     chk_used = info.get("chk_count", 0) or get_chk_count(user.id)
     if is_admin_user or is_premium:
-        chk_line = f"♾ غير محدود"
+        chk_line = "♾"
     else:
         remaining = max(0, FREE_CHK_LIMIT - chk_used)
-        chk_line = f"{chk_used}/{FREE_CHK_LIMIT} (متبقي: {remaining})"
+        chk_line = f"{remaining}/{FREE_CHK_LIMIT}"
+
+    reqs = info.get("request_count", 0)
+    gens = info.get("gen_count", 0)
 
     msg = (
-        f"{SEP}\n"
-        f"   👤  معلومات حسابي\n"
-        f"{SEP}\n\n"
-        f"🔗 المعرّف     :  {username_str}\n"
-        f"📛 الاسم       :  {name_str}\n"
-        f"🆔 ID          :  <code>{info['user_id']}</code>\n"
-        f"📅 تاريخ الانضمام :  {joined_str}\n\n"
-        f"📊 إجمالي الطلبات  :  {info['request_count']:,}\n"
-        f"🃏 بطاقات مولّدة   :  {info['gen_count']:,}\n"
-        f"🔍 فحوصات /chk     :  {chk_line}\n\n"
-        f"🎖 الاشتراك    :  {member_line}\n"
-        f"🔒 الحالة      :  {ban_str}\n\n"
-        f"{SEP}\n"
-        f"   <i>© DDXSTORE • @ddx22</i>\n"
-        f"{SEP}"
+        f"{S}\n"
+        f"  👤  <b>{name}</b>  {uname}\n"
+        f"{S}\n"
+        f"🆔  <code>{uid}</code>\n"
+        f"📅  {joined_str}\n"
+        f"{S}\n"
+        f"📊  Requests: <b>{reqs:,}</b>\n"
+        f"🃏  Generated: <b>{gens:,}</b>\n"
+        f"🔍  Checks: <b>{chk_line}</b>\n"
+        f"{S}\n"
+        f"🎖  {tier}\n"
+        f"{S}\n"
+        f"<i>© DDXSTORE • @ddx22</i>"
     )
     await update.message.reply_text(msg, parse_mode="HTML")
