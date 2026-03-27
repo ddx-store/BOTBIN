@@ -27,11 +27,17 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         info = get_user_info(user.id)
 
     if not info:
-        await update.message.reply_text(
-            "❌ لم يتم العثور على بياناتك.\n"
-            "أرسل /start لتسجيل حسابك أولاً."
-        )
-        return
+        info = {
+            "user_id":       user.id,
+            "username":      user.username,
+            "first_name":    user.first_name,
+            "is_banned":     False,
+            "is_premium":    False,
+            "premium_until": None,
+            "request_count": 0,
+            "gen_count":     0,
+            "joined_at":     None,
+        }
 
     username_str = _h.escape(f"@{info['username']}") if info.get("username") else "—"
     name_str     = _h.escape(info.get("first_name") or "—")

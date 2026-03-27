@@ -58,6 +58,28 @@ def get_local_user_ids():
     return []
 
 
+def get_local_user_info(user_id: int) -> dict | None:
+    try:
+        if USERS_JSON.exists():
+            data = json.loads(USERS_JSON.read_text(encoding="utf-8"))
+            info = data.get(str(user_id))
+            if info:
+                return {
+                    "user_id":       user_id,
+                    "username":      info.get("username"),
+                    "first_name":    info.get("first_name"),
+                    "is_banned":     False,
+                    "is_premium":    False,
+                    "premium_until": None,
+                    "request_count": 0,
+                    "gen_count":     0,
+                    "joined_at":     info.get("joined_at", ""),
+                }
+    except Exception:
+        pass
+    return None
+
+
 def get_all_local_users() -> list:
     try:
         if USERS_JSON.exists():

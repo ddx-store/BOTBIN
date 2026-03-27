@@ -105,6 +105,7 @@ python main.py
 - **File descriptor leak fix**: Backup file opened with `with` context manager
 - **Username sync**: `register_user` now updates username/first_name on every `/start` (existing users get updated, return value preserved for new/returning distinction)
 - **parse_mode consistency**: `router.py` address auto-detect now sends `parse_mode="HTML"` matching `<code>` tags in `get_address_text`
+- **`/myinfo` resilience**: Triple fallback — PostgreSQL → local JSON (`data/users.json`) → Telegram user object. Never shows "not found" error
 
 ## Live Card Check (Stripe Integration)
 

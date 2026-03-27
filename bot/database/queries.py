@@ -145,27 +145,27 @@ def get_recent_users(limit=10):
 
 
 def get_user_info(user_id: int) -> dict | None:
-    if not DATABASE_URL:
-        return None
-    result = execute_query(
-        """SELECT user_id, username, first_name, is_banned, is_premium,
-                  premium_until, request_count, gen_count, joined_at
-           FROM bot_users WHERE user_id = %s""",
-        (user_id,), fetch_one=True,
-    )
-    if not result:
-        return None
-    return {
-        "user_id":       result[0],
-        "username":      result[1],
-        "first_name":    result[2],
-        "is_banned":     result[3] or False,
-        "is_premium":    result[4] or False,
-        "premium_until": result[5],
-        "request_count": result[6] or 0,
-        "gen_count":     result[7] or 0,
-        "joined_at":     result[8],
-    }
+    if DATABASE_URL:
+        result = execute_query(
+            """SELECT user_id, username, first_name, is_banned, is_premium,
+                      premium_until, request_count, gen_count, joined_at
+               FROM bot_users WHERE user_id = %s""",
+            (user_id,), fetch_one=True,
+        )
+        if result:
+            return {
+                "user_id":       result[0],
+                "username":      result[1],
+                "first_name":    result[2],
+                "is_banned":     result[3] or False,
+                "is_premium":    result[4] or False,
+                "premium_until": result[5],
+                "request_count": result[6] or 0,
+                "gen_count":     result[7] or 0,
+                "joined_at":     result[8],
+            }
+    from bot.database.backup import get_local_user_info
+    return get_local_user_info(user_id)
 
 
 def is_premium_user(user_id: int) -> bool:
