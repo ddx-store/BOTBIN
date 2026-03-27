@@ -2,7 +2,10 @@ import re
 from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.database.queries import is_user_banned, increment_request_count, increment_request_stat, get_setting
+from bot.database.queries import (
+    is_user_banned, increment_request_count, increment_request_stat,
+    get_setting, is_premium_user, get_chk_count, increment_chk_count,
+)
 from bot.database.bin_db import log_request
 from bot.utils.rate_limiter import check_rate_limit, check_flood, check_live_rate_limit
 from bot.utils.luhn import is_valid_luhn
@@ -10,6 +13,7 @@ from bot.utils.bin_lookup import bin_lookup
 from bot.utils.formatter import chk_msg
 from bot.utils.crypto import decrypt_value
 from bot.utils.stripe_checker import live_check
+from bot.config.settings import FREE_CHK_LIMIT, ADMIN_ID
 from bot.services.i18n import (
     MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD,
     MSG_CHK_EXAMPLE, MSG_CHK_CHECKING, MSG_ERROR,
@@ -83,6 +87,18 @@ async def chk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(MSG_RATE_LIMIT)
         return
 
+    is_admin = ADMIN_ID and user.id == ADMIN_ID
+    if not is_admin and not is_premium_user(user.id):
+        used = get_chk_count(user.id)
+        if used >= FREE_CHK_LIMIT:
+            await update.message.reply_text(
+                f"❌ استنفذت الفحوصات المجانية ({FREE_CHK_LIMIT}/{FREE_CHK_LIMIT})\n\n"
+                "💎 للحصول على فحوصات غير محدودة، تحتاج اشتراك <b>Premium</b>\n"
+                "تواصل مع الأدمن @ddx22 للترقية",
+                parse_mode="HTML",
+            )
+            return
+
     text = update.message.text or ""
     match = re.match(r"^/(?:chk|check)(@\w+)?\s*(.*)", text, re.IGNORECASE | re.DOTALL)
     raw_input = match.group(2).strip() if match else ""
@@ -92,6 +108,9 @@ async def chk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not card_number or len(card_number) < 13 or len(card_number) > 19:
         await update.message.reply_text(MSG_CHK_EXAMPLE)
         return
+
+    if not is_admin and not is_premium_user(user.id):
+        increment_chk_count(user.id)
 
     increment_request_count(user.id)
     increment_request_stat()

@@ -1,7 +1,8 @@
 import html as _h
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.database.queries import is_user_banned, get_user_info, register_user
+from bot.database.queries import is_user_banned, get_user_info, register_user, get_chk_count
+from bot.config.settings import FREE_CHK_LIMIT, ADMIN_ID
 from bot.utils.logger import get_logger
 
 logger = get_logger("myinfo")
@@ -36,6 +37,7 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "premium_until": None,
             "request_count": 0,
             "gen_count":     0,
+            "chk_count":     0,
             "joined_at":     None,
         }
 
@@ -46,6 +48,7 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     joined_str = str(joined)[:10] if joined else "—"
 
     is_premium = info.get("is_premium", False)
+    is_admin_user = ADMIN_ID and user.id == ADMIN_ID
     premium_until = info.get("premium_until")
 
     if is_premium:
@@ -59,6 +62,13 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ban_str = "🚫 محظور" if info.get("is_banned") else "✅ نشط"
 
+    chk_used = info.get("chk_count", 0) or get_chk_count(user.id)
+    if is_admin_user or is_premium:
+        chk_line = f"♾ غير محدود"
+    else:
+        remaining = max(0, FREE_CHK_LIMIT - chk_used)
+        chk_line = f"{chk_used}/{FREE_CHK_LIMIT} (متبقي: {remaining})"
+
     msg = (
         f"{SEP}\n"
         f"   👤  معلومات حسابي\n"
@@ -68,7 +78,8 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 ID          :  <code>{info['user_id']}</code>\n"
         f"📅 تاريخ الانضمام :  {joined_str}\n\n"
         f"📊 إجمالي الطلبات  :  {info['request_count']:,}\n"
-        f"🃏 بطاقات مولّدة   :  {info['gen_count']:,}\n\n"
+        f"🃏 بطاقات مولّدة   :  {info['gen_count']:,}\n"
+        f"🔍 فحوصات /chk     :  {chk_line}\n\n"
         f"🎖 الاشتراك    :  {member_line}\n"
         f"🔒 الحالة      :  {ban_str}\n\n"
         f"{SEP}\n"

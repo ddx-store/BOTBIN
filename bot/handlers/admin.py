@@ -116,6 +116,7 @@ def _build_user_card(info: dict) -> str:
     joined   = str(info.get("joined_at") or "—")[:10]
     reqs     = info.get("request_count", 0)
     gens     = info.get("gen_count", 0)
+    chks     = info.get("chk_count", 0)
     prem     = "💎 Premium" if info.get("is_premium") else "🆓 Free"
     status   = "🚫 محظور" if info.get("is_banned") else "✅ نشط"
     prem_exp = ""
@@ -133,6 +134,7 @@ def _build_user_card(info: dict) -> str:
         f"{S2}\n"
         f"📊 الطلبات   ┃  <b>{reqs:,}</b>\n"
         f"🃏 الكروت    ┃  <b>{gens:,}</b>\n"
+        f"🔍 الفحوصات  ┃  <b>{chks:,}</b>\n"
         f"🎖 عضوية    ┃  {prem}{prem_exp}\n"
         f"🔒 الحالة    ┃  {status}\n"
         f"{S}"

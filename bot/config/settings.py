@@ -17,6 +17,8 @@ QUEUE_THRESHOLD = 50
 
 DEFAULT_CARD_LENGTH = 16
 
+FREE_CHK_LIMIT = 5
+
 BIN_LOOKUP_URL     = "https://lookup.binlist.net"
 BIN_LOOKUP_URL2    = "https://data.handyapi.com/bin"
 BIN_LOOKUP_TIMEOUT = 6

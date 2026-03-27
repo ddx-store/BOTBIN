@@ -81,6 +81,12 @@ def init_db():
                 ) THEN
                     ALTER TABLE bot_users ADD COLUMN gen_count BIGINT DEFAULT 0;
                 END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='bot_users' AND column_name='chk_count'
+                ) THEN
+                    ALTER TABLE bot_users ADD COLUMN chk_count BIGINT DEFAULT 0;
+                END IF;
             END $$;
         """)
 

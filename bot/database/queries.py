@@ -161,7 +161,8 @@ def get_user_info(user_id: int) -> dict | None:
     if DATABASE_URL:
         result = execute_query(
             """SELECT user_id, username, first_name, is_banned, is_premium,
-                      premium_until, request_count, gen_count, joined_at
+                      premium_until, request_count, gen_count, joined_at,
+                      COALESCE(chk_count, 0)
                FROM bot_users WHERE user_id = %s""",
             (user_id,), fetch_one=True,
         )
@@ -176,6 +177,7 @@ def get_user_info(user_id: int) -> dict | None:
                 "request_count": result[6] or 0,
                 "gen_count":     result[7] or 0,
                 "joined_at":     result[8],
+                "chk_count":     result[9] or 0,
             }
     from bot.database.backup import get_local_user_info
     return get_local_user_info(user_id)
@@ -241,6 +243,29 @@ def increment_gen_count(user_id: int):
         "UPDATE bot_users SET gen_count = gen_count + 1 WHERE user_id = %s",
         (user_id,),
     )
+
+
+def get_chk_count(user_id: int) -> int:
+    if DATABASE_URL:
+        result = execute_query(
+            "SELECT chk_count FROM bot_users WHERE user_id = %s",
+            (user_id,), fetch_one=True,
+        )
+        if result:
+            return result[0] or 0
+    from bot.database.backup import local_get_setting
+    return int(local_get_setting(f"chk_count_{user_id}") or 0)
+
+
+def increment_chk_count(user_id: int):
+    from bot.database.backup import local_get_setting, local_set_setting
+    cur = int(local_get_setting(f"chk_count_{user_id}") or 0)
+    local_set_setting(f"chk_count_{user_id}", str(cur + 1))
+    if DATABASE_URL:
+        execute_query(
+            "UPDATE bot_users SET chk_count = COALESCE(chk_count, 0) + 1 WHERE user_id = %s",
+            (user_id,),
+        )
 
 
 def delete_user(user_id: int) -> bool:
