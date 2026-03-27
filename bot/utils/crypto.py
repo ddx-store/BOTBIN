@@ -5,8 +5,9 @@ from bot.config.settings import BOT_TOKEN
 
 
 def _get_fernet() -> Fernet:
-    key_material = (BOT_TOKEN or "fallback-key-ddxstore").encode()
-    key = base64.urlsafe_b64encode(hashlib.sha256(key_material).digest())
+    if not BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN is required for encryption — cannot proceed without it")
+    key = base64.urlsafe_b64encode(hashlib.sha256(BOT_TOKEN.encode()).digest())
     return Fernet(key)
 
 

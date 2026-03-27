@@ -281,6 +281,7 @@ def chk_msg(card_number: str, valid: bool, info: dict,
             "    \U0001f4e1  <b>LIVE CHECK</b>",
             SEP_LONG,
             _lv("Result", f"{icon} {_e(live_result.get('display', '—'))}", "\U0001f4e1"),
+            _lv("Code",   _code(live_result.get("decline_code", "—")), "\U0001f4c4"),
             _lv("Gate",   _e(live_result.get("gate", "—")), "\U0001f310"),
         ]
         raw_msg = live_result.get("raw_message", "")

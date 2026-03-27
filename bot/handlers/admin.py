@@ -296,13 +296,13 @@ async def setkey_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args or []
     if not args:
         await update.message.reply_text(
-            "❌ الاستخدام:\n<code>/setkey sk_live_...</code>",
+            "❌ الاستخدام:\n<code>/setkey sk_live_...</code>\n<code>/setkey sk_test_...</code>",
             parse_mode="HTML",
         )
         return
     raw_key = args[0].strip()
-    if not raw_key.startswith("sk_live_"):
-        await update.message.reply_text("❌ المفتاح يجب أن يبدأ بـ <code>sk_live_</code>", parse_mode="HTML")
+    if not (raw_key.startswith("sk_live_") or raw_key.startswith("sk_test_")):
+        await update.message.reply_text("❌ المفتاح يجب أن يبدأ بـ <code>sk_live_</code> أو <code>sk_test_</code>", parse_mode="HTML")
         return
     encrypted = encrypt_value(raw_key)
     ok = set_setting("stripe_key", encrypted)
