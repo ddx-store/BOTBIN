@@ -58,6 +58,7 @@ async def setup_commands(application):
         BotCommand("gen",     "توليد بطاقات"),
         BotCommand("bin",     "فحص BIN"),
         BotCommand("chk",     "فحص صحة بطاقة"),
+        BotCommand("mchk",    "فحص جماعي"),
         BotCommand("address", "عنوان عشوائي"),
         BotCommand("fake",    "هوية وهمية"),
         BotCommand("myinfo",  "معلوماتي"),

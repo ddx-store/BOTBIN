@@ -8,6 +8,7 @@ from bot.handlers.start import start, help_command, setup_commands
 from bot.handlers.gen import gen_command, regen_callback
 from bot.handlers.bin_cmd import bin_command
 from bot.handlers.check import chk_command
+from bot.handlers.mass_check import mchk_command
 from bot.handlers.address import address_command, address_regen_callback
 from bot.handlers.fake import fake_command, fake_regen_callback
 from bot.handlers.myinfo import myinfo_command
@@ -82,6 +83,7 @@ def create_app():
     app.add_handler(CommandHandler("bin", bin_command))
     app.add_handler(CommandHandler("chk", chk_command))
     app.add_handler(CommandHandler("check", chk_command))
+    app.add_handler(CommandHandler("mchk", mchk_command))
     app.add_handler(CommandHandler("address", address_command))
     app.add_handler(CommandHandler("fake", fake_command))
     app.add_handler(CommandHandler("myinfo",     myinfo_command))

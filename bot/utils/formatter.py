@@ -297,6 +297,36 @@ def chk_msg(card_number: str, valid: bool, info: dict,
     return "\n".join(parts)
 
 
+def mchk_line(card_number: str, month: str, year: str, cvv: str,
+              live_result: dict) -> str:
+    st = live_result.get("status", "unknown")
+    label, icon = _STATUS_MAP.get(st, ("❓", "❓"))
+    masked = card_number[:6] + "••••" + card_number[-4:]
+    return f"{icon}  <code>{_e(masked)}|{_e(month)}|20{_e(year)}|{_e(cvv)}</code>"
+
+
+def mchk_msg(results: list, total: int, live_count: int, dead_count: int,
+             err_count: int, user=None) -> str:
+    S = "━" * 16
+    lines = [
+        S,
+        "  📋 MASS CHECK",
+        S,
+    ]
+
+    for r in results:
+        lines.append(r)
+
+    lines += [
+        S,
+        f"✅ Live: {live_count}  |  ❌ Dead: {dead_count}  |  ⚠️ Err: {err_count}",
+        f"📊 Total: {total}",
+        S,
+        f"<i>{FOOT}</i>",
+    ]
+    return "\n".join(lines)
+
+
 # ─── Fake Identity ────────────────────────────────────────────────────────────
 
 _FAKE_SEP = "\u2501" * 14   # ━━━━━━━━━━━━━━
