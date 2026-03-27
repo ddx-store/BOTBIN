@@ -175,7 +175,11 @@ def get_bin_local(bin_number: str) -> dict | None:
 
 def save_bin_local(bin_number: str, info: dict) -> None:
     """Single-BIN upsert (used by bin_lookup.py for on-demand caching)."""
-    _do_upsert(_conn(), [(bin_number, info)])
+    try:
+        with _conn() as con:
+            _do_upsert(con, [(bin_number, info)])
+    except Exception as e:
+        logger.error(f"save_bin_local error: {e}")
 
 
 def bulk_save_bins(items: list[tuple[str, dict]]) -> int:

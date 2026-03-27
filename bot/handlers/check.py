@@ -138,7 +138,7 @@ async def chk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             "status": "error",
                             "display": "Gateway Error \u26a0\ufe0f",
                             "decline_code": "error",
-                            "raw_message": str(le),
+                            "raw_message": "Internal error",
                             "gate": "Stripe",
                         }
 

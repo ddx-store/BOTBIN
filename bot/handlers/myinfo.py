@@ -1,3 +1,4 @@
+import html as _h
 from telegram import Update
 from telegram.ext import ContextTypes
 from bot.database.queries import is_user_banned, get_user_info
@@ -28,8 +29,8 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    username_str = f"@{info['username']}" if info.get("username") else "—"
-    name_str     = info.get("first_name") or "—"
+    username_str = _h.escape(f"@{info['username']}") if info.get("username") else "—"
+    name_str     = _h.escape(info.get("first_name") or "—")
 
     joined = info.get("joined_at")
     joined_str = str(joined)[:10] if joined else "—"

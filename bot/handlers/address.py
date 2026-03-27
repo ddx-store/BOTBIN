@@ -39,7 +39,8 @@ async def address_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     country_match, use_arabic = await find_country(country_input)
     if not country_match:
-        await update.message.reply_text(MSG_ADDR_NOT_FOUND.format(country=country_input))
+        import html as _h
+        await update.message.reply_text(MSG_ADDR_NOT_FOUND.format(country=_h.escape(country_input)))
         return
 
     country_name = country_match["name"]

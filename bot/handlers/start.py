@@ -17,13 +17,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_new = register_user(user.id, user.username, user.first_name)
 
     if is_new:
-        logger.info(f"New user: {user.id} @{user.username}")
+        logger.info(f"New user: {user.id}")
         if ADMIN_ID:
             try:
+                import html as _h
                 from bot.database.backup import get_local_user_count
                 total = get_local_user_count()
-                name_d  = user.first_name or "—"
-                uname_d = f"@{user.username}" if user.username else "—"
+                name_d  = _h.escape(user.first_name or "—")
+                uname_d = _h.escape(f"@{user.username}") if user.username else "—"
                 notif = (
                     "🆕 مشترك جديد!\n"
                     "─────────────\n"
@@ -36,9 +37,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(chat_id=ADMIN_ID, text=notif)
             except Exception:
                 pass
-        await update.message.reply_text(WELCOME_NEW.format(name=user.first_name))
+        import html as _h2
+        safe_name = _h2.escape(user.first_name or "")
+        await update.message.reply_text(WELCOME_NEW.format(name=safe_name))
     else:
-        await update.message.reply_text(WELCOME_BACK.format(name=user.first_name))
+        import html as _h2
+        safe_name = _h2.escape(user.first_name or "")
+        await update.message.reply_text(WELCOME_BACK.format(name=safe_name))
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

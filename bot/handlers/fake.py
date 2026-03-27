@@ -170,8 +170,9 @@ async def fake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     resolved = resolve_country(country_query) if country_query else None
 
     if country_query and not resolved:
+        import html as _h
         await update.message.reply_text(
-            f"❌ الدولة '{country_query}' غير موجودة.\n\n"
+            f"❌ الدولة '{_h.escape(country_query)}' غير موجودة.\n\n"
             f"أمثلة: /fake us · /fake kr · /fake fr · /fake sa\n"
             f"سيتم توليد هوية عشوائية..."
         )

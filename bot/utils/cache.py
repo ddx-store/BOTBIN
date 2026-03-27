@@ -24,7 +24,8 @@ class TTLCache:
 
     def size(self) -> int:
         now = time.time()
-        return sum(1 for _, (_, exp) in self._store.items() if now < exp)
+        self._store = {k: v for k, v in self._store.items() if now < v[1]}
+        return len(self._store)
 
 
 bin_cache = TTLCache(ttl=3600)
