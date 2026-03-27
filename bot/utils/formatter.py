@@ -218,15 +218,14 @@ def bin_lookup_msg(bin_num: str, info: dict) -> str:
 
 # ─── Card Checker ─────────────────────────────────────────────────────────────
 
-_LIVE_ICON = {
-    "live":          "\u2705",
-    "dead":          "\u274c",
-    "insufficient":  "\u26a0\ufe0f",
-    "ccv_error":     "\u274c",
-    "3d_secure":     "\U0001f512",
-    "error":         "\u26a0\ufe0f",
-    "rate_limited":  "\u23f3",
-    "unknown":       "\u2753",
+_STATUS_MAP = {
+    "live":          ("✅ LIVE",       "✅"),
+    "dead":          ("❌ DEAD",       "❌"),
+    "insufficient":  ("⚠️ INSUFFICIENT", "⚠️"),
+    "ccv_error":     ("❌ CCN ERROR",  "❌"),
+    "3d_secure":     ("🔒 3D SECURE",  "🔒"),
+    "error":         ("⚠️ ERROR",      "⚠️"),
+    "rate_limited":  ("⏳ RATE LIMIT", "⏳"),
 }
 
 
@@ -236,74 +235,64 @@ def chk_msg(card_number: str, valid: bool, info: dict,
             expiry_ok=None, expiry_note: str = None,
             live_result: dict = None) -> str:
 
+    S = "━" * 16
+
     overall_ok = valid and (length_ok is not False) and (expiry_ok is not False)
     if live_result and live_result.get("status") in ("dead", "ccv_error"):
         overall_ok = False
-    header_icon = "\u2705" if overall_ok else "\u274c"
-    status_text = ("<b>\u2705 VALID</b>" if overall_ok else "<b>\u274c INVALID</b>")
-    luhn_text   = "Valid \u2714" if valid else "Invalid \u2718"
-
-    masked = card_number[:6] + ("\u2022" * (len(card_number) - 10)) + card_number[-4:]
-
-    full_card = card_number
-    if month and year:
-        full_card += f"|{month}|20{year}"
-        if cvv:
-            full_card += f"|{cvv}"
-
-    parts = [
-        SEP_LONG,
-        "    " + header_icon + "  <b>DDX CARD CHECK</b>",
-        SEP_LONG,
-        _lv("Card", _code(masked), "\U0001f4b3"),
-    ]
-
-    if month and year:
-        exp_str = f"{month}/20{year}" + (f" | CVV: {cvv}" if cvv else "")
-        parts.append(_lv("Expiry", exp_str, "\U0001f4c5"))
-
-    parts += [
-        _lv("Status", status_text, "\U0001f50d"),
-        _lv("Luhn",   luhn_text, "\U0001f510"),
-    ]
-
-    if length_ok is not None:
-        parts.append(_lv("Length", f"{len(card_number)} \u2714" if length_ok else f"{len(card_number)} \u2718", "\U0001f4cf"))
-
-    if expiry_note is not None:
-        parts.append(_lv("Validity", expiry_note, "\u23f3"))
 
     if live_result:
-        icon = _LIVE_ICON.get(live_result.get("status", ""), "\u2753")
-        parts += [
-            "",
-            SEP_LONG,
-            "    \U0001f4e1  <b>LIVE CHECK</b>",
-            SEP_LONG,
-            _lv("Result", f"{icon} {_e(live_result.get('display', '—'))}", "\U0001f4e1"),
-            _lv("Code",   _code(live_result.get("decline_code", "—")), "\U0001f4c4"),
-            _lv("Gate",   _e(live_result.get("gate", "—")), "\U0001f310"),
-        ]
-        raw_msg = live_result.get("raw_message", "")
-        if raw_msg:
-            parts.append(_lv("Detail", _trim(raw_msg, 40), "\U0001f4ac"))
+        st = live_result.get("status", "unknown")
+        label, icon = _STATUS_MAP.get(st, ("❓ UNKNOWN", "❓"))
+        gate = _e(live_result.get("gate", ""))
+        header = f"  {label}" + (f"  |  {gate}" if gate else "")
+    else:
+        if overall_ok:
+            header = "  ✅ VALID"
+        else:
+            header = "  ❌ INVALID"
 
-    chk_region = (info.get("issued_region") or "").strip()
-    parts += [
-        "",
-        _lv("Brand",   _e(info.get("scheme") or "\u2014"), "\U0001f3f7"),
-        _lv("Type",    _e(info.get("type") or "\u2014"), "\U0001f4cb"),
-        _lv("Level",   _e(info.get("level") or "\u2014"), "\u2b50"),
-        _lv("Bank",    _trim(info.get("bank") or "\u2014", 28), "\U0001f3e6"),
-        _lv("Country", _country_str(info), "\U0001f30d"),
+    masked = _code(card_number[:6] + "••••" + card_number[-4:])
+
+    exp_line = ""
+    if month and year:
+        exp_line = f"\n📅  {month}/20{year}"
+        if cvv:
+            exp_line += f" | {cvv}"
+
+    scheme = _e((info.get("scheme") or "").upper())
+    typ    = _e((info.get("type") or "").upper())
+    bin_info = " ".join(filter(None, [scheme, typ]))
+
+    country = _country_str(info)
+
+    parts = [
+        S,
+        header,
+        S,
+        f"💳  {masked}{exp_line}",
     ]
-    if chk_region and chk_region not in ("N/A", ""):
-        parts.append(_lv("Region", _e(chk_region), "\U0001f5fa\ufe0f"))
+
+    if bin_info:
+        parts.append(f"🏷  {bin_info}")
+
+    bank = (info.get("bank") or "").strip()
+    if bank and bank not in ("N/A", "—", ""):
+        parts.append(f"🏦  {_trim(bank, 25)}")
+
+    parts.append(f"🌍  {country}")
+
+    if live_result:
+        decline = live_result.get("decline_code", "")
+        raw_msg = live_result.get("raw_message", "")
+        if decline and decline not in ("—", "error", "rate_limited", "unknown"):
+            parts.append(f"📋  {_e(decline)}")
+        elif raw_msg and raw_msg != "Internal error":
+            parts.append(f"📋  {_trim(raw_msg, 35)}")
+
     parts += [
-        SEP_LONG,
-        _lv("Full",    _code(full_card), "\U0001f4cb"),
-        SEP_LONG,
-        "    <i>" + FOOT + "</i>",
+        S,
+        f"<i>{FOOT}</i>",
     ]
     return "\n".join(parts)
 
