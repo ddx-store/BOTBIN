@@ -1,7 +1,7 @@
 import html as _h
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.database.queries import is_user_banned, get_user_info
+from bot.database.queries import is_user_banned, get_user_info, register_user
 from bot.utils.logger import get_logger
 
 logger = get_logger("myinfo")
@@ -21,6 +21,10 @@ async def myinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     info = get_user_info(user.id)
+
+    if not info:
+        register_user(user.id, user.username, user.first_name)
+        info = get_user_info(user.id)
 
     if not info:
         await update.message.reply_text(
