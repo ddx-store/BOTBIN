@@ -44,19 +44,28 @@ def set_ban_status(user_id, status):
     return result is not None and result > 0
 
 
+def _local_increment(stat_key: str):
+    from bot.database.backup import local_get_setting, local_set_setting
+    cur = int(local_get_setting(stat_key) or 0)
+    local_set_setting(stat_key, str(cur + 1))
+
+
 def increment_gen_stat():
+    _local_increment("stat_total_gens")
     if not DATABASE_URL:
         return
     execute_query("UPDATE bot_stats SET value = value + 1 WHERE key = 'total_gens'")
 
 
 def increment_bin_stat():
+    _local_increment("stat_total_bin_lookups")
     if not DATABASE_URL:
         return
     execute_query("UPDATE bot_stats SET value = value + 1 WHERE key = 'total_bin_lookups'")
 
 
 def increment_request_stat():
+    _local_increment("stat_total_requests")
     if not DATABASE_URL:
         return
     execute_query("UPDATE bot_stats SET value = value + 1 WHERE key = 'total_requests'")
@@ -86,7 +95,11 @@ def get_detailed_stats():
     from bot.database.backup import get_local_user_count
     local_count = get_local_user_count()
     if not DATABASE_URL:
-        return local_count, local_count, 0, 0, 0, 0
+        from bot.database.backup import local_get_setting
+        gens = int(local_get_setting("stat_total_gens") or 0)
+        bins = int(local_get_setting("stat_total_bin_lookups") or 0)
+        reqs = int(local_get_setting("stat_total_requests") or 0)
+        return local_count, local_count, 0, gens, bins, reqs
     total = execute_query("SELECT COUNT(*) FROM bot_users", fetch_one=True)
     active = execute_query(
         "SELECT COUNT(*) FROM bot_users WHERE is_banned = FALSE", fetch_one=True,
