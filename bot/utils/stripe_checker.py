@@ -76,7 +76,7 @@ async def live_check(card_number: str, month: str, year: str, cvv: str,
                 "currency": "usd",
                 "payment_method": pm_id,
                 "confirm": "true",
-                "automatic_payment_methods[enabled]": "false",
+                "payment_method_types[]": "card",
             },
         )
         pi_data = pi_resp.json()

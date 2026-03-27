@@ -7,9 +7,9 @@ from bot.database.queries import (
     get_detailed_stats, get_banned_users,
     get_all_users, set_ban_status, set_premium, get_premium_users_count,
     delete_user, get_users_page, search_user, get_user_info,
-    get_setting, set_setting, delete_setting,
+    set_setting, delete_setting,
 )
-from bot.utils.crypto import encrypt_value, decrypt_value
+from bot.utils.crypto import encrypt_value
 from bot.database.backup import USERS_JSON
 from bot.database.bin_db import (
     get_top_bins, get_bin_db_size, get_total_requests_today,
