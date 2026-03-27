@@ -1,6 +1,7 @@
 import re
 import time
 import random
+import html as _html
 import httpx
 from difflib import SequenceMatcher
 from bot.config.settings import COUNTRIES_API_URL, COUNTRIES_CACHE_TTL
@@ -1591,6 +1592,10 @@ def get_country_info_text(match, use_arabic):
     return "\n".join(lines)
 
 
+def _c(val: str) -> str:
+    return "<code>" + _html.escape(str(val) if val else "—") + "</code>"
+
+
 def get_address_text(country_name, use_arabic=False):
     addr        = get_random_address(country_name, use_arabic)
     phone_code  = CITY_DATA.get(country_name, {}).get("phone_code", "+1")
@@ -1599,25 +1604,25 @@ def get_address_text(country_name, use_arabic=False):
     gender      = random.choice(_GENDERS)
     email       = _gen_email(full_name)
     flag        = _get_flag(country_name)
-    upper_name  = country_name.upper()
+    upper_name  = _html.escape(country_name.upper())
 
     district = addr.get("district") or ""
 
     lines = [
-        f"\U0001f4cd {upper_name} \u2014  Address {flag}",
+        f"\U0001f4cd <b>{upper_name}</b> \u2014 Address {flag}",
         _SEP,
-        f"\U0001f194 Full Name: {full_name}",
-        f"\U0001f464 Gender: {gender}",
-        f"\U0001f3e0 Street Address: {addr.get('street') or '\u2014'}",
+        f"\U0001f194 Full Name: {_c(full_name)}",
+        f"\U0001f464 Gender: {_html.escape(gender)}",
+        f"\U0001f3e0 Street Address: {_c(addr.get('street') or '—')}",
     ]
     if district:
-        lines.append(f"\U0001f3d8\ufe0f District: {district}")
+        lines.append(f"\U0001f3d8\ufe0f District: {_c(district)}")
     lines += [
-        f"\U0001f3d9\ufe0f City/Town: {addr.get('city') or '\u2014'}",
-        f"\U0001f5fa\ufe0f State/Region: {addr.get('state') or '\u2014'}",
-        f"\U0001f4ee Postal Code: {addr.get('zip') or '\u2014'}",
-        f"\U0001f4de Phone Number: {phone}",
-        f"\U0001f4e7 Email: {email}",
+        f"\U0001f3d9\ufe0f City/Town: {_c(addr.get('city') or '—')}",
+        f"\U0001f5fa\ufe0f State/Region: {_c(addr.get('state') or '—')}",
+        f"\U0001f4ee Postal Code: {_c(addr.get('zip') or '—')}",
+        f"\U0001f4de Phone Number: {_c(phone)}",
+        f"\U0001f4e7 Email: {_c(email)}",
         f"\U0001f30d Country: {upper_name} {flag}",
         _SEP,
     ]

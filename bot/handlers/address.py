@@ -45,7 +45,7 @@ async def address_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     country_name = country_match["name"]
     msg = get_address_text(country_name, False)
     keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=f"addr_{country_name}")]]
-    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
 async def address_regen_callback(query, user):
@@ -54,7 +54,7 @@ async def address_regen_callback(query, user):
     msg = get_address_text(country_name, False)
     keyboard = [[InlineKeyboardButton(BTN_GENERATE_AGAIN, callback_data=f"addr_{country_name}")]]
     try:
-        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     except Exception as e:
         err = str(e).lower()
         if "message is not modified" not in err:
@@ -62,4 +62,4 @@ async def address_regen_callback(query, user):
                 await query.message.delete()
             except Exception:
                 pass
-            await query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+            await query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
