@@ -19,6 +19,10 @@ def _cleanup_old_entries():
     stale = [uid for uid, ts in _user_timestamps.items() if not ts or max(ts) < cutoff]
     for uid in stale:
         del _user_timestamps[uid]
+    live_cutoff = now - LIVE_CHECK_WINDOW
+    live_stale = [uid for uid, ts in _live_timestamps.items() if not ts or max(ts) < live_cutoff]
+    for uid in live_stale:
+        del _live_timestamps[uid]
 
 
 def check_rate_limit(user_id: int) -> bool:
@@ -41,6 +45,24 @@ def check_flood(user_id: int) -> bool:
         return False
     recent = [t for t in _user_timestamps[user_id] if now - t < BURST_WINDOW]
     return len(recent) >= BURST_MAX
+
+
+LIVE_CHECK_WINDOW = 60
+LIVE_CHECK_MAX = 5
+_live_timestamps: dict = {}
+
+
+def check_live_rate_limit(user_id: int) -> bool:
+    now = time.time()
+    if user_id not in _live_timestamps:
+        _live_timestamps[user_id] = []
+    _live_timestamps[user_id] = [
+        t for t in _live_timestamps[user_id] if now - t < LIVE_CHECK_WINDOW
+    ]
+    if len(_live_timestamps[user_id]) >= LIVE_CHECK_MAX:
+        return False
+    _live_timestamps[user_id].append(now)
+    return True
 
 
 def get_reset_in(user_id: int) -> int:

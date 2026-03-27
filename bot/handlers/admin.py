@@ -7,7 +7,9 @@ from bot.database.queries import (
     get_detailed_stats, get_banned_users,
     get_all_users, set_ban_status, set_premium, get_premium_users_count,
     delete_user, get_users_page, search_user, get_user_info,
+    get_setting, set_setting, delete_setting,
 )
+from bot.utils.crypto import encrypt_value, decrypt_value
 from bot.database.backup import USERS_JSON
 from bot.database.bin_db import (
     get_top_bins, get_bin_db_size, get_total_requests_today,
@@ -286,6 +288,44 @@ async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     card = _build_user_card(info)
     kb   = _user_actions_keyboard(uid, info["is_banned"], info["is_premium"])
     await update.message.reply_text(card, reply_markup=kb, parse_mode="HTML")
+
+
+async def setkey_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not is_admin(update.message.from_user.id):
+        return
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "❌ الاستخدام:\n<code>/setkey sk_live_...</code>",
+            parse_mode="HTML",
+        )
+        return
+    raw_key = args[0].strip()
+    if not raw_key.startswith("sk_live_"):
+        await update.message.reply_text("❌ المفتاح يجب أن يبدأ بـ <code>sk_live_</code>", parse_mode="HTML")
+        return
+    encrypted = encrypt_value(raw_key)
+    ok = set_setting("stripe_key", encrypted)
+    if not ok:
+        await update.message.reply_text("❌ فشل حفظ المفتاح — تحقق من قاعدة البيانات")
+        return
+    masked = raw_key[:8] + "..." + raw_key[-4:]
+    logger.info("Admin set Stripe key")
+    await update.message.reply_text(
+        f"✅ تم حفظ مفتاح Stripe\n<code>{_h.escape(masked)}</code>",
+        parse_mode="HTML",
+    )
+
+
+async def removekey_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not is_admin(update.message.from_user.id):
+        return
+    ok = delete_setting("stripe_key")
+    if ok:
+        logger.info("Admin removed Stripe key")
+        await update.message.reply_text("✅ تم حذف مفتاح Stripe")
+    else:
+        await update.message.reply_text("❌ لا يوجد مفتاح محفوظ")
 
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

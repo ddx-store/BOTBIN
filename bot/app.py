@@ -16,6 +16,7 @@ from bot.handlers.admin import (
     broadcast_command, stats_command, admin_callback,
     user_info_command, updatebins_command, randombin_command,
     premium_command, unpremium_command,
+    setkey_command, removekey_command,
     set_bin_scheduler,
 )
 from bot.handlers.router import text_router
@@ -94,6 +95,8 @@ def create_app():
     app.add_handler(CommandHandler("randombin",  randombin_command))
     app.add_handler(CommandHandler("premium",    premium_command))
     app.add_handler(CommandHandler("unpremium",  unpremium_command))
+    app.add_handler(CommandHandler("setkey",     setkey_command))
+    app.add_handler(CommandHandler("removekey",  removekey_command))
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.Regex(r"^/gen\d+"), gen_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))

@@ -42,7 +42,7 @@ telegram-bot/
 │   │       ├── sources.py       # 3 API sources (binlist/handyapi/freebinlist)
 │   │       ├── updater.py       # BinListUpdater class + get_random_bin()
 │   │       └── scheduler.py     # 24h background scheduler
-│   └── utils/             # logger, rate_limiter, cache, formatter, bin_lookup
+│   └── utils/             # logger, rate_limiter, cache, formatter, bin_lookup, crypto, stripe_checker
 ```
 
 ## Architecture
@@ -62,7 +62,7 @@ telegram-bot/
 |---|---|
 | `/gen BIN\|MM\|YY[\|CVV][ count]` | Generate cards (all separator formats supported) |
 | `/bin <6-digit BIN>` | BIN lookup with scheme/type/level/bank/country/region |
-| `/chk <card>[\|MM\|YY[\|CVV]]` | Card validation (Luhn + expiry + length + BIN region) |
+| `/chk <card>[\|MM\|YY[\|CVV]]` | Card validation (Luhn + expiry + length + BIN region + live Stripe check if key set) |
 | `/address <country>` | Random address with district field |
 | `/fake <country>` | Fake identity |
 | `/myinfo` | Show user's own stats (join date, request count, gen count, premium status) |
@@ -76,6 +76,8 @@ telegram-bot/
 | `/premium <id> [days]` | Grant premium (permanent or N days) |
 | `/unpremium <id>` | Revoke premium |
 | `/broadcast <msg>` | Message all users |
+| `/setkey sk_live_...` | Set Stripe live key (encrypted in DB) |
+| `/removekey` | Remove stored Stripe key |
 | `/updatebins` | Refresh BIN cache |
 
 ## Required Environment Secrets
@@ -103,6 +105,15 @@ python main.py
 - **File descriptor leak fix**: Backup file opened with `with` context manager
 - **Username sync**: `register_user` now updates username/first_name on every `/start` (existing users get updated, return value preserved for new/returning distinction)
 - **parse_mode consistency**: `router.py` address auto-detect now sends `parse_mode="HTML"` matching `<code>` tags in `get_address_text`
+
+## Live Card Check (Stripe Integration)
+
+- **Admin key management**: `/setkey` encrypts Stripe key with Fernet (SHA256 of BOT_TOKEN) and stores in `bot_settings` table; `/removekey` deletes it
+- **Live check flow**: When card has number+month+year+cvv and Luhn/length/expiry pass, and a Stripe key is stored, creates PaymentMethod → PaymentIntent ($1 USD) → auto-refund if succeeded
+- **Safety**: Refund failure is treated as hard error (never reports "live" without confirmed refund); 3D Secure detected; 20+ decline code mappings
+- **Rate limit**: Separate 5/min per-user limit for live checks (in-memory, cleaned hourly)
+- **Security**: Key never echoed in plain text (masked `sk_live_...xxxx`); stored encrypted in PostgreSQL `bot_settings` table
+- **Dependencies**: `cryptography==44.0.0` added for Fernet encryption
 
 ## Workflow
 

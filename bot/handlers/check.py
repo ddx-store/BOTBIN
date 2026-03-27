@@ -2,12 +2,14 @@ import re
 from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.database.queries import is_user_banned, increment_request_count, increment_request_stat
+from bot.database.queries import is_user_banned, increment_request_count, increment_request_stat, get_setting
 from bot.database.bin_db import log_request
-from bot.utils.rate_limiter import check_rate_limit, check_flood
+from bot.utils.rate_limiter import check_rate_limit, check_flood, check_live_rate_limit
 from bot.utils.luhn import is_valid_luhn
 from bot.utils.bin_lookup import bin_lookup
 from bot.utils.formatter import chk_msg
+from bot.utils.crypto import decrypt_value
+from bot.utils.stripe_checker import live_check
 from bot.services.i18n import (
     MSG_BANNED, MSG_RATE_LIMIT, MSG_FLOOD,
     MSG_CHK_EXAMPLE, MSG_CHK_CHECKING, MSG_ERROR,
@@ -108,11 +110,44 @@ async def chk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if month and year:
             expiry_ok, expiry_note = _check_expiry(month, year)
 
+        live_result = None
+        can_live = (
+            month and year and cvv
+            and luhn_valid
+            and (length_ok is not False)
+            and (expiry_ok is not False)
+        )
+        if can_live:
+            enc_key = get_setting("stripe_key")
+            if enc_key:
+                if not check_live_rate_limit(user.id):
+                    live_result = {
+                        "status": "rate_limited",
+                        "display": "Rate Limited \u26a0\ufe0f",
+                        "decline_code": "rate_limited",
+                        "raw_message": "",
+                        "gate": "—",
+                    }
+                else:
+                    try:
+                        stripe_key = decrypt_value(enc_key)
+                        live_result = await live_check(card_number, month, year, cvv, stripe_key)
+                    except Exception as le:
+                        logger.error(f"Live check error: {le}")
+                        live_result = {
+                            "status": "error",
+                            "display": "Gateway Error \u26a0\ufe0f",
+                            "decline_code": "error",
+                            "raw_message": str(le),
+                            "gate": "Stripe",
+                        }
+
         msg = chk_msg(
             card_number, luhn_valid, info,
             month=month, year=year, cvv=cvv,
             length_ok=length_ok,
             expiry_ok=expiry_ok, expiry_note=expiry_note,
+            live_result=live_result,
         )
         await wait_msg.edit_text(msg, parse_mode="HTML")
     except Exception as e:

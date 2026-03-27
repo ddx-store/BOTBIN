@@ -84,6 +84,14 @@ def init_db():
             END $$;
         """)
 
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bot_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         conn.commit()
         cur.close()
         logger.info("PostgreSQL DB initialized.")

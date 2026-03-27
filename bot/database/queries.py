@@ -289,6 +289,38 @@ def search_user(query_str: str):
     }
 
 
+def get_setting(key: str) -> str | None:
+    if not DATABASE_URL:
+        return None
+    result = execute_query(
+        "SELECT value FROM bot_settings WHERE key = %s",
+        (key,), fetch_one=True,
+    )
+    return result[0] if result else None
+
+
+def set_setting(key: str, value: str) -> bool:
+    if not DATABASE_URL:
+        return False
+    result = execute_query(
+        """INSERT INTO bot_settings (key, value, updated_at)
+           VALUES (%s, %s, CURRENT_TIMESTAMP)
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP""",
+        (key, value),
+    )
+    return result is not None
+
+
+def delete_setting(key: str) -> bool:
+    if not DATABASE_URL:
+        return False
+    result = execute_query(
+        "DELETE FROM bot_settings WHERE key = %s",
+        (key,),
+    )
+    return result is not None and result > 0
+
+
 def get_user_lang(user_id):
     if not DATABASE_URL:
         return "en"
