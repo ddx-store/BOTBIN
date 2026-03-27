@@ -290,18 +290,22 @@ def search_user(query_str: str):
 
 
 def get_setting(key: str) -> str | None:
-    if not DATABASE_URL:
-        return None
-    result = execute_query(
-        "SELECT value FROM bot_settings WHERE key = %s",
-        (key,), fetch_one=True,
-    )
-    return result[0] if result else None
+    if DATABASE_URL:
+        result = execute_query(
+            "SELECT value FROM bot_settings WHERE key = %s",
+            (key,), fetch_one=True,
+        )
+        if result:
+            return result[0]
+    from bot.database.backup import local_get_setting
+    return local_get_setting(key)
 
 
 def set_setting(key: str, value: str) -> bool:
+    from bot.database.backup import local_set_setting
+    local_set_setting(key, value)
     if not DATABASE_URL:
-        return False
+        return True
     result = execute_query(
         """INSERT INTO bot_settings (key, value, updated_at)
            VALUES (%s, %s, CURRENT_TIMESTAMP)
@@ -312,8 +316,10 @@ def set_setting(key: str, value: str) -> bool:
 
 
 def delete_setting(key: str) -> bool:
+    from bot.database.backup import local_delete_setting
+    local_delete_setting(key)
     if not DATABASE_URL:
-        return False
+        return True
     result = execute_query(
         "DELETE FROM bot_settings WHERE key = %s",
         (key,),

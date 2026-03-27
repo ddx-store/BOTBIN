@@ -80,6 +80,51 @@ def get_local_user_info(user_id: int) -> dict | None:
     return None
 
 
+SETTINGS_JSON = DATA_DIR / "settings.json"
+
+
+def _load_local_settings() -> dict:
+    try:
+        if SETTINGS_JSON.exists():
+            return json.loads(SETTINGS_JSON.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def _save_local_settings(data: dict):
+    SETTINGS_JSON.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def local_set_setting(key: str, value: str) -> bool:
+    try:
+        data = _load_local_settings()
+        data[key] = value
+        _save_local_settings(data)
+        return True
+    except Exception:
+        return False
+
+
+def local_get_setting(key: str) -> str | None:
+    data = _load_local_settings()
+    return data.get(key)
+
+
+def local_delete_setting(key: str) -> bool:
+    try:
+        data = _load_local_settings()
+        if key in data:
+            del data[key]
+            _save_local_settings(data)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def get_all_local_users() -> list:
     try:
         if USERS_JSON.exists():
